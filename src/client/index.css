@@ -1,0 +1,26 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap');
+@import 'tailwindcss';
+
+
+/* Design tokens — 01_PRODUCT_DOCUMENTATION.md, Section 12 */
+:root {
+  --color-primary: #6c5ce7;
+  --color-primary-dark: #4b3fc0;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-bg-light: #fafafa;
+  --color-bg-dark: #111114;
+}
+
+body {
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+h1, h2, h3, .font-heading {
+  font-family: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+}
+
+.font-mono-stat {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
