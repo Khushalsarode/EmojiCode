@@ -4,14 +4,7 @@
 // external API. Swap `runSafetyCheck` for a hosted moderation call later —
 // the function signature is the contract.
 
-const DENYLIST: RegExp[] = [
-  /\b(nazi|hitler|kkk)\b/i,
-  /\b(kill\s+yourself|kys)\b/i,
-  /\b(child\s*porn|cp\b|pedophil)/i,
-  /\b(doxx?|social\s*security|ssn\b)\b/i,
-  /\b(rape|rapist)\b/i,
-  /\bslur\b/i,
-];
+import { containsProfanity } from './wordFilter';
 
 const MAX_ANSWER_LENGTH = 80;
 
@@ -42,14 +35,14 @@ export const runSafetyCheck = async (
     return { passed: false, reason: 'Every emoji slot must be filled.' };
   }
 
+  // Checks hate speech/harassment AND adult content (Section 9.1) — the
+  // broader profanity list, not just the severe-only one guess-censoring uses.
   const haystack = `${emojis.join(' ')} ${trimmed}`;
-  for (const pattern of DENYLIST) {
-    if (pattern.test(haystack)) {
-      return {
-        passed: false,
-        reason: "That didn't pass our content check — try another one.",
-      };
-    }
+  if (containsProfanity(haystack)) {
+    return {
+      passed: false,
+      reason: "That didn't pass our content check — try another one.",
+    };
   }
 
   return { passed: true };

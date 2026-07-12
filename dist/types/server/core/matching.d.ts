@@ -5,3 +5,4 @@ export type MatchResult = {
 };
 export declare const scoreGuess: (guessText: string, answer: string) => MatchResult;
 export declare const censorGuess: (text: string) => string;
+export declare const hintPattern: (answer: string) => string;

@@ -1,4 +1,4 @@
-import type { GuessResponse } from '../../shared/api';
+import { type GuessResponse } from '../../shared/api';
 export type ProcessGuessInput = {
     postId: string;
     userId: string;

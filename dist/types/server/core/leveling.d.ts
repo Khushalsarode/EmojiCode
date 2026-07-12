@@ -7,6 +7,7 @@ export type LevelTier = {
 };
 export declare const LEVEL_TIERS: LevelTier[];
 export declare const computeLevel: (xp: number) => LevelTier;
+export declare const getTierByLevel: (level: number) => LevelTier;
 export declare const baseDailySubmissionLimit: (level: number) => number;
 export declare const XP_REWARDS: {
     readonly CORRECT_GUESS: 10;

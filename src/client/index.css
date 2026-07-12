@@ -1,26 +1,423 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Nunito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&family=Press+Start+2P&display=swap');
 @import 'tailwindcss';
 
+/* Warm-neutral override of Tailwind's built-in gray scale (Scandinavian
+   philosophy: no pure black or cool gray, warm undertones throughout). Every
+   existing bg-gray, text-gray, border-gray and dark mode gray utility class
+   across every screen picks this up automatically — nothing else needs to
+   change to get a warmer, less "default Tailwind" feel everywhere at once. */
+@theme {
+  --color-gray-50: #fafaf9;
+  --color-gray-100: #f5f4f2;
+  --color-gray-200: #e7e5e2;
+  --color-gray-300: #d6d3ce;
+  --color-gray-400: #a8a29c;
+  --color-gray-500: #78716a;
+  --color-gray-600: #57534d;
+  --color-gray-700: #44403a;
+  --color-gray-800: #2a2724;
+  --color-gray-900: #1c1a18;
+}
 
-/* Design tokens — 01_PRODUCT_DOCUMENTATION.md, Section 12 */
+/* Design tokens — 01_PRODUCT_DOCUMENTATION.md, Section 12. Every screen pulls
+   from this single palette/radius/shadow set — that's what "one theme" means
+   in code: nobody hand-picks a new shadow or radius per component.
+   Palette: "Cipher Teal" — a decode/mystery-coded teal instead of the
+   generic purple-gradient SaaS default, paired with warm neutrals above. */
 :root {
-  --color-primary: #6c5ce7;
-  --color-primary-dark: #4b3fc0;
+  --color-primary: #0f766e;
+  --color-primary-dark: #115e59;
   --color-success: #22c55e;
   --color-warning: #f59e0b;
   --color-danger: #ef4444;
-  --color-bg-light: #fafafa;
-  --color-bg-dark: #111114;
+  --color-bg-light: #fafaf9;
+  --color-bg-dark: #1c1a18;
+
+  /* Explicit text-color tokens — without these, any element that forgets its
+     own text-gray or dark-mode text-gray class silently inherits the
+     browser default (black) text color, which is invisible on a dark
+     background. body/input/select below fall back to these so nothing
+     can go blank. */
+  --color-text-primary: #1c1a18;
+  --color-text-secondary: #57534d;
+
+  --radius-card: 0.75rem; /* 12px, per Section 12 */
+  --radius-btn: 0.5rem; /* 8px, per Section 12 */
+  --shadow-card: 0 2px 8px -2px rgb(0 0 0 / 0.08), 0 12px 32px -12px rgb(0 0 0 / 0.16);
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --shadow-card: none; /* flat borders in dark mode, per Section 12 — no shadow to fight the dark bg */
+    --color-text-primary: #f5f4f2;
+    --color-text-secondary: #d6d3ce;
+    color-scheme: dark;
+  }
+}
+:root[data-theme='dark'] {
+  --shadow-card: none;
+  --color-text-primary: #f5f4f2;
+  --color-text-secondary: #d6d3ce;
+  color-scheme: dark;
+}
+:root[data-theme='light'] {
+  color-scheme: light;
 }
 
 body {
-  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  font-family: 'Nunito', ui-sans-serif, system-ui, sans-serif;
+  color: var(--color-text-primary);
+}
+
+/* Belt-and-suspenders: native form controls don't always inherit color from
+   an ancestor the way plain text does, so without this they can render with
+   the browser's default (light-mode) text color even inside a dark-mode
+   card — reading as "invisible" text over a dark, bg-transparent field. */
+input,
+select,
+textarea {
+  color: var(--color-text-primary);
 }
 
 h1, h2, h3, .font-heading {
   font-family: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.01em;
 }
 
 .font-mono-stat {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* Pixel treatment for a Reddit username wherever it's shown as its own
+   standalone piece of text (profile header, post byline, leaderboard rows,
+   solved recap) — same retro typeface as the wordmark, but no gradient fill,
+   so it reads clearly at small sizes and in any surrounding text color. */
+.font-pixel {
+  font-family: 'Press Start 2P', ui-monospace, monospace;
+}
+
+/* The app wordmark ("EmojiCode") — one distinctive pixel/arcade treatment
+   used everywhere it appears (hub, splash, onboarding) instead of plain
+   heading text. `color` is a solid fallback so the text stays visible even
+   if background-clip: text isn't supported somewhere — only browsers that
+   support the clip actually see the gradient replace it. A second background
+   layer sweeps a glassy highlight across the text periodically. */
+.font-wordmark {
+  font-family: 'Press Start 2P', 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+  color: var(--color-primary);
+  background-image:
+    linear-gradient(135deg, var(--color-primary), var(--color-primary-dark)),
+    linear-gradient(100deg, transparent 35%, rgb(255 255 255 / 0.9) 48%, transparent 62%);
+  background-size: 100% 100%, 250% 100%;
+  background-position: 0 0, -120% 0;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: wordmark-shine 4s ease-in-out infinite;
+}
+@keyframes wordmark-shine {
+  0%, 40%, 100% { background-position: 0 0, -120% 0; }
+  65% { background-position: 0 0, 220% 0; }
+}
+@supports not (-webkit-background-clip: text) {
+  .font-wordmark {
+    background-image: none;
+    animation: none;
+    -webkit-text-fill-color: unset;
+  }
+}
+
+/* Fluid emoji showcase — vw-based sizing instead of fixed breakpoint jumps,
+   so the five cipher emojis (plus letter-spacing) always fit on one line on
+   any phone width instead of overflowing or wrapping to a second line. */
+.emoji-row {
+  font-size: clamp(1.85rem, 9vw, 5.5rem);
+  letter-spacing: clamp(0.05em, 1vw, 0.3em);
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+/* Fluid horizontal page padding — scales continuously with viewport width
+   instead of jumping between two fixed values at one breakpoint. */
+.fluid-px {
+  padding-left: clamp(1rem, 4vw, 2rem);
+  padding-right: clamp(1rem, 4vw, 2rem);
+}
+
+/* Themed scrollbars — every scrollable area (Modal's `scroll` variant, the
+   emoji grid, the Solved Recap chart) otherwise gets the browser's default
+   scrollbar, which stays light-styled even in dark mode unless themed here,
+   reading as a stray pale bar over an otherwise dark UI. Thin and unobtrusive
+   instead of the OS default gutter. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-gray-400) transparent;
+}
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: var(--color-gray-400);
+  border-radius: 999px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) * {
+    scrollbar-color: var(--color-gray-600) transparent;
+  }
+  :root:not([data-theme='light']) ::-webkit-scrollbar-thumb {
+    background-color: var(--color-gray-600);
+  }
+}
+:root[data-theme='dark'] * {
+  scrollbar-color: var(--color-gray-600) transparent;
+}
+:root[data-theme='dark'] ::-webkit-scrollbar-thumb {
+  background-color: var(--color-gray-600);
+}
+
+/* Tactile feedback on every button, everywhere — small but felt (Section 12). */
+button:not(:disabled) {
+  transition: transform 120ms ease, opacity 120ms ease, border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
+}
+button:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+/* Shared focus ring for text inputs — one consistent "you're typing here"
+   affordance instead of each screen inventing its own border/outline combo. */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+
+/* Shared focus ring for every button (keyboard navigation) — every button in
+   this app is a native <button>, so one rule here covers Button.tsx, icon
+   buttons, tab toggles, and list rows without editing each component. */
+button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 35%, transparent);
+}
+
+/* Hover-lift for tappable list rows (My Ciphers, Trending, Leaderboard). */
+.list-card {
+  transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+.list-card:hover {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: var(--shadow-card);
+}
+
+/* Soft ambient background for the hub/splash screens — subtle brand-tinted
+   glow rather than a flat card, without touching the dark-mode contrast.
+   Slowly drifts so the hub never reads as a static screenshot. */
+.bg-app-glow {
+  background-image:
+    radial-gradient(circle at 20% 15%, color-mix(in srgb, var(--color-primary) 16%, transparent), transparent 45%),
+    radial-gradient(circle at 85% 85%, color-mix(in srgb, var(--color-primary) 13%, transparent), transparent 50%);
+  background-size: 160% 160%;
+  animation: glow-drift 14s ease-in-out infinite;
+}
+@keyframes glow-drift {
+  0%, 100% { background-position: 0% 0%, 100% 100%; }
+  50% { background-position: 15% 10%, 85% 90%; }
+}
+
+/* Primary buttons get a gradient + glow instead of a flat fill, and lift on
+   hover in addition to the global press-scale — the one element every
+   screen shares, so this is where "premium" reads most. */
+.btn-glow {
+  background-image: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+}
+.btn-glow:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px -8px color-mix(in srgb, var(--color-primary) 55%, transparent);
+}
+.btn-glow:active:not(:disabled) {
+  transform: translateY(0) scale(0.96);
+}
+
+/* Glassy shine for every button variant — a static top-highlight sheen
+   (::after, always on) plus a diagonal shine that sweeps across on hover
+   (::before), so buttons read as tactile glass rather than flat color. */
+.btn-glass {
+  position: relative;
+  overflow: hidden;
+}
+.btn-glass::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(to bottom, rgb(255 255 255 / 0.22), transparent 55%);
+  pointer-events: none;
+}
+.btn-glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 30%, rgb(255 255 255 / 0.45) 48%, rgb(255 255 255 / 0.05) 58%, transparent 70%);
+  transform: translateX(-130%);
+  transition: transform 0.7s ease;
+  pointer-events: none;
+}
+.btn-glass:hover:not(:disabled)::before {
+  transform: translateX(130%);
+}
+
+/* Card border glow — a hairline brand-tinted ring layered under the normal
+   shadow, so cards read as "designed" rather than a bare white rectangle. */
+.card-glow {
+  box-shadow: var(--shadow-card), 0 0 0 1px color-mix(in srgb, var(--color-primary) 10%, transparent);
+}
+
+/* Shimmer sweep across progress bars — reads as "live," not a static PNG. */
+@keyframes shimmer-sweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+.progress-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.progress-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.35), transparent);
+  animation: shimmer-sweep 1.8s ease-in-out infinite;
+}
+
+/* Staggered list-row entrance (Leaderboard, My Ciphers, Trending) — set
+   `--i` inline per row for a cascading reveal instead of everything
+   appearing at once. */
+@keyframes list-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.list-item-in {
+  animation: list-item-in 320ms ease-out backwards;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+/* Badge chip pop-in (Profile Card). */
+@keyframes badge-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.badge-pop {
+  animation: badge-pop 360ms cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+
+/* Streak-flame flicker — small, alive, never distracting. */
+@keyframes flame-flicker {
+  0%, 100% { transform: scale(1) rotate(-3deg); }
+  50% { transform: scale(1.12) rotate(3deg); }
+}
+.flame-icon {
+  display: inline-block;
+  animation: flame-flicker 1.5s ease-in-out infinite;
+}
+
+/* Wrong-guess shake — a quick negative-feedback shake on the feedback line. */
+@keyframes shake-x {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
+}
+.shake-x {
+  animation: shake-x 380ms ease-in-out;
+}
+
+@keyframes modal-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.modal-pop {
+  animation: modal-pop 160ms ease-out;
+}
+
+/* Confetti burst (components/Confetti.tsx) — falls and rotates, GPU-only
+   properties (transform/opacity) so it stays smooth even on modest devices. */
+@keyframes confetti-fall {
+  from {
+    transform: translateY(-10vh) rotate(0deg);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(110vh) rotate(var(--rot, 360deg));
+    opacity: 0;
+  }
+}
+.confetti-piece {
+  animation-name: confetti-fall;
+  animation-timing-function: ease-in;
+  animation-fill-mode: forwards;
+  will-change: transform, opacity;
+}
+
+/* Page-content fade-in on load — subtle, not a spinner-to-content jump cut. */
+@keyframes content-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.content-fade-in {
+  animation: content-fade-in 220ms ease-out;
+}
+
+/* Quick-reaction pop (game.tsx's emoji react row) — rises and fades over the
+   cipher, then game.tsx clears it via a timeout. */
+@keyframes reaction-pop {
+  0% {
+    transform: translate(-50%, 0) scale(0.6);
+    opacity: 0;
+  }
+  30% {
+    transform: translate(-50%, -10px) scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -46px) scale(1);
+    opacity: 0;
+  }
+}
+.reaction-pop {
+  animation: reaction-pop 900ms ease-out forwards;
 }

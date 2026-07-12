@@ -1,14 +1,19 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-// Leaderboard screen (01_PRODUCT_DOCUMENTATION.md, Section 13.9).
+// Leaderboard screen (01_PRODUCT_DOCUMENTATION.md, Section 13.9) — two
+// distinct boards (Section 7): Decoders (total XP, guessing-driven) and
+// Cipher Masters (upvote-driven creativity score on submitted posts).
 import { useEffect, useState } from 'react';
+import { Spinner } from './Spinner';
+import { Modal } from './Modal';
 export const Leaderboard = ({ onClose }) => {
     const [window_, setWindow] = useState('weekly');
+    const [board, setBoard] = useState('decoders');
     const [data, setData] = useState(null);
     useEffect(() => {
         const load = async () => {
             setData(null);
             try {
-                const res = await fetch(`/api/leaderboard?window=${window_}`);
+                const res = await fetch(`/api/leaderboard?window=${window_}&board=${board}`);
                 const json = await res.json();
                 setData(json);
             }
@@ -17,7 +22,13 @@ export const Leaderboard = ({ onClose }) => {
             }
         };
         void load();
-    }, [window_]);
-    return (_jsx("div", { className: "fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4", children: _jsxs("div", { className: "bg-white dark:bg-gray-900 rounded-xl p-5 w-full max-w-sm flex flex-col gap-3", children: [_jsxs("div", { className: "flex items-center justify-between", children: [_jsx("span", { className: "font-heading font-bold text-lg", children: "\uD83C\uDFC6 Leaderboard" }), _jsx("button", { onClick: onClose, className: "text-gray-400", children: "\u2715" })] }), _jsxs("select", { className: "self-start text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-transparent px-2 py-1", value: window_, onChange: (e) => setWindow(e.target.value), children: [_jsx("option", { value: "weekly", children: "Weekly" }), _jsx("option", { value: "alltime", children: "All-Time" })] }), _jsx("div", { className: "flex flex-col gap-2 max-h-72 overflow-y-auto", children: !data ? (_jsx("div", { className: "text-sm text-gray-500 dark:text-gray-400 text-center py-4", children: "Loading\u2026" })) : data.entries.length === 0 ? (_jsx("div", { className: "text-sm text-gray-400 dark:text-gray-500 text-center py-4", children: "No scores yet." })) : (data.entries.map((entry, i) => (_jsx("div", { className: "flex items-center justify-between text-sm", children: _jsxs("div", { children: [_jsxs("span", { className: "font-mono-stat text-gray-400 dark:text-gray-500 mr-2", children: [i + 1, "."] }), _jsxs("span", { className: "text-gray-800 dark:text-gray-100", children: ["u/", entry.username] }), _jsxs("div", { className: "text-xs text-gray-500 dark:text-gray-400 ml-6", children: ["\uD83C\uDFC5 ", entry.label, " \u00B7 ", entry.score, " pts", entry.streak > 0 ? ` · 🔥 ${entry.streak}` : ''] })] }) }, entry.userId)))) }), data && data.viewerRank !== null && (_jsxs("div", { className: "border-t border-gray-200 dark:border-gray-700 pt-2 text-sm text-gray-700 dark:text-gray-300", children: ["You: #", data.viewerRank, data.viewerStreak > 0 ? ` · 🔥 ${data.viewerStreak}-day streak` : ''] }))] }) }));
+    }, [window_, board]);
+    return (_jsxs(Modal, { title: "\uD83C\uDFC6 Leaderboard", onClose: onClose, scroll: true, children: [_jsxs("div", { className: "flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1", children: [_jsx("button", { "aria-pressed": board === 'decoders', className: "flex-1 h-9 rounded-md text-sm font-medium transition-all text-gray-600 dark:text-gray-300", style: {
+                            backgroundColor: board === 'decoders' ? 'var(--color-primary)' : 'transparent',
+                            color: board === 'decoders' ? '#fff' : undefined,
+                        }, onClick: () => setBoard('decoders'), children: "\uD83D\uDD0E Decoders" }), _jsx("button", { "aria-pressed": board === 'cipherMasters', className: "flex-1 h-9 rounded-md text-sm font-medium transition-all text-gray-600 dark:text-gray-300", style: {
+                            backgroundColor: board === 'cipherMasters' ? 'var(--color-primary)' : 'transparent',
+                            color: board === 'cipherMasters' ? '#fff' : undefined,
+                        }, onClick: () => setBoard('cipherMasters'), children: "\uD83D\uDC51 Cipher Masters" })] }), _jsxs("select", { className: "self-start text-sm rounded-md border border-gray-300 dark:border-gray-600 bg-transparent px-2 py-1 text-gray-800 dark:text-gray-100", value: window_, onChange: (e) => setWindow(e.target.value), children: [_jsx("option", { value: "weekly", children: "Weekly" }), _jsx("option", { value: "alltime", children: "All-Time" })] }), _jsx("div", { className: "flex flex-col gap-2", children: !data ? (_jsx(Spinner, {})) : data.entries.length === 0 ? (_jsx("div", { className: "text-sm text-gray-400 dark:text-gray-500 text-center py-4", children: "No scores yet." })) : (data.entries.map((entry, i) => (_jsx("div", { className: "list-card list-item-in flex items-center justify-between text-sm rounded-lg border border-transparent hover:border-gray-200 dark:hover:border-gray-700 px-2 py-1 -mx-2", style: { ['--i']: i }, children: _jsxs("div", { children: [_jsxs("span", { className: "font-mono-stat text-gray-400 dark:text-gray-500 mr-2", children: [i + 1, "."] }), _jsxs("span", { className: "font-pixel text-gray-800 dark:text-gray-100", children: ["u/", entry.username] }), _jsxs("div", { className: "text-xs text-gray-500 dark:text-gray-400 ml-6", children: ["\uD83C\uDFC5 ", entry.label, " \u00B7 ", entry.score, " pts", entry.streak > 0 ? ` · 🔥 ${entry.streak}` : ''] })] }) }, entry.userId)))) }), data && data.viewerRank !== null && (_jsxs("div", { className: "border-t border-gray-200 dark:border-gray-700 pt-2 text-sm text-gray-700 dark:text-gray-300", children: ["You: #", data.viewerRank, data.viewerStreak > 0 ? ` · 🔥 ${data.viewerStreak}-day streak` : ''] }))] }));
 };
 //# sourceMappingURL=Leaderboard.js.map

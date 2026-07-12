@@ -3,6 +3,11 @@
 // Level and label are ALWAYS derived from stored xp via computeLevel(), never
 // stored independently — this is the single source of truth so they can't
 // drift out of sync (see 04_DEVVIT_WEB_BUILD_SKILL.md, Redis key patterns).
+//
+// Levels 1-8 are the authored table below; Level 8+ climbs indefinitely,
+// computed on demand (getTierByLevel) rather than capped — this is what
+// keeps leveling dynamic instead of stalling forever once xp crosses the
+// Level 8 threshold.
 
 export type LevelTier = {
   level: number;
@@ -20,25 +25,43 @@ export const LEVEL_TIERS: LevelTier[] = [
   { level: 5, xpStart: 1300, xpEnd: 2199, label: 'Emoji Whisperer', rewards: ['+2 daily submissions', 'Level 5 flair'] },
   { level: 6, xpStart: 2200, xpEnd: 3999, label: 'Master Decoder', rewards: ['Trending eligibility', 'Level 6 flair'] },
   { level: 7, xpStart: 4000, xpEnd: 6499, label: 'Grandmaster Cryptographer', rewards: ['Early feature access', 'Level 7 flair'] },
-  { level: 8, xpStart: 6500, xpEnd: null, label: 'Legendary Cipher', rewards: ['Level 8+ flair (escalating tier)'] },
+  { level: 8, xpStart: 6500, xpEnd: 9999, label: 'Legendary Cipher', rewards: ['Level 8+ flair (escalating tier)'] },
 ];
 
+const BASE_TIER = LEVEL_TIERS[LEVEL_TIERS.length - 1]!;
 const XP_PER_STEP_PAST_TIER_8 = 3500;
 
-export const computeLevel = (xp: number): LevelTier => {
-  for (const tier of LEVEL_TIERS) {
-    if (tier.xpEnd === null || xp <= tier.xpEnd) {
-      if (xp >= tier.xpStart) return tier;
-    }
-  }
-  // Past the last defined tier: keep climbing as "Legendary Cipher (Lv. N)"
-  const base = LEVEL_TIERS[LEVEL_TIERS.length - 1]!;
-  const stepsPast = Math.floor((xp - base.xpStart) / XP_PER_STEP_PAST_TIER_8);
+// Synthesizes tier info for any level >= 8 — the actual "no cap" mechanism.
+// Levels < 8 always come from the authored table above.
+const dynamicTierForLevel = (level: number): LevelTier => {
+  const stepsPast = Math.max(0, level - BASE_TIER.level);
+  const xpStart = BASE_TIER.xpStart + stepsPast * XP_PER_STEP_PAST_TIER_8;
   return {
-    ...base,
-    level: base.level + stepsPast,
-    label: `${base.label} (Lv. ${base.level + stepsPast})`,
+    level: BASE_TIER.level + stepsPast,
+    xpStart,
+    xpEnd: xpStart + XP_PER_STEP_PAST_TIER_8 - 1,
+    label: stepsPast === 0 ? BASE_TIER.label : `${BASE_TIER.label} (Lv. ${BASE_TIER.level + stepsPast})`,
+    rewards: BASE_TIER.rewards,
   };
+};
+
+export const computeLevel = (xp: number): LevelTier => {
+  for (const tier of LEVEL_TIERS.slice(0, -1)) {
+    if (xp >= tier.xpStart && xp <= tier.xpEnd!) return tier;
+  }
+  if (xp < BASE_TIER.xpStart) return LEVEL_TIERS[0]!; // defensive fallback, shouldn't hit
+  const stepsPast = Math.floor((xp - BASE_TIER.xpStart) / XP_PER_STEP_PAST_TIER_8);
+  return dynamicTierForLevel(BASE_TIER.level + stepsPast);
+};
+
+// Looks up tier info for an arbitrary level number, not just the current
+// user's — backs the Level-Up screen's indefinite prev/next browsing
+// (Section 13.8), since levels are never capped by a fixed table length.
+export const getTierByLevel = (level: number): LevelTier => {
+  const known = LEVEL_TIERS.find((t) => t.level === level);
+  if (known) return known;
+  if (level < 1) return LEVEL_TIERS[0]!;
+  return dynamicTierForLevel(level);
 };
 
 export const baseDailySubmissionLimit = (level: number): number => {

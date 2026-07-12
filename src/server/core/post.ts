@@ -6,6 +6,7 @@ import { runSafetyCheck } from './safety';
 import { inferCategory } from './category';
 import { keys, defaultUserProfile, todayUtc, type StoredCipherPost } from './storage';
 import { XP_REWARDS, computeLevel, baseDailySubmissionLimit } from './leveling';
+import { CATEGORY_OPTIONS, LANGUAGE_OPTIONS, type CipherCategory, type CipherLanguage } from '../../shared/api';
 
 export type CreateCipherResult =
   | { status: 'published'; postId: string; postUrl: string }
@@ -14,7 +15,9 @@ export type CreateCipherResult =
 export const createCipherPost = async (
   emojis: string[],
   answer: string,
-  hardMode = false
+  hardMode = false,
+  category?: CipherCategory,
+  language?: CipherLanguage
 ): Promise<CreateCipherResult> => {
   if (emojis.length !== 5) {
     return { status: 'rejected', reason: 'Pick exactly 5 emojis.' };
@@ -59,20 +62,29 @@ export const createCipherPost = async (
     entry: 'default',
   });
 
+  const resolvedCategory =
+    category && CATEGORY_OPTIONS.includes(category) ? category : inferCategory(answer);
+  const resolvedLanguage = language && LANGUAGE_OPTIONS.includes(language) ? language : 'English';
+
   const record: StoredCipherPost = {
     postId: post.id,
     submitterUserId: userId,
     submitterUsername: username,
     emojis,
-    category: inferCategory(answer),
+    category: resolvedCategory,
+    language: resolvedLanguage,
     answer,
     publishedAt: Date.now(),
     upvotes: 0,
+    upvoteXpAwarded: 0,
     hardMode,
     decoderList: [],
     firstCrackUserId: null,
     firstCrackUsername: null,
     guessDistribution: {},
+    totalGuesses: 0,
+    uniqueGuessers: [],
+    skips: 0,
   };
   await redis.set(keys.cipher(post.id), JSON.stringify(record));
 
@@ -84,6 +96,9 @@ export const createCipherPost = async (
   await redis.set(keys.dailySubs(userId, day), String(subsToday + 1));
 
   profile.xp += XP_REWARDS.CIPHER_PUBLISHED;
+  if (profile.totalPostsCreated === 0 && !profile.badges.includes('first-submission')) {
+    profile.badges.push('first-submission');
+  }
   profile.totalPostsCreated += 1;
   profile.username = username;
   await redis.set(keys.user(userId), JSON.stringify(profile));
@@ -93,5 +108,44 @@ export const createCipherPost = async (
     status: 'published',
     postId: post.id,
     postUrl: `https://www.reddit.com/r/${subredditName}/comments/${post.id}`,
+  };
+};
+
+export type HubPostResult =
+  | { status: 'ready'; postId: string; postUrl: string; created: boolean }
+  | { status: 'rejected'; reason: string };
+
+// The persistent "Welcome to EmojiCode" hub post (Section 13.1's Home Menu) —
+// one per subreddit install, created on demand and reused after that.
+// Deliberately never gets a `cipher:{postId}` record: /api/init treats the
+// absence of a cipher record as "this postId is the hub," not a rejection.
+export const getOrCreateHubPost = async (): Promise<HubPostResult> => {
+  const { subredditName } = context;
+  if (!subredditName) {
+    return { status: 'rejected', reason: 'Missing subreddit context.' };
+  }
+
+  const existingId = await redis.get(keys.hubPost());
+  if (existingId) {
+    return {
+      status: 'ready',
+      postId: existingId,
+      postUrl: `https://www.reddit.com/r/${subredditName}/comments/${existingId}`,
+      created: false,
+    };
+  }
+
+  const post = await reddit.submitCustomPost({
+    subredditName,
+    title: 'Welcome to EmojiCode!',
+    entry: 'default',
+  });
+  await redis.set(keys.hubPost(), post.id);
+
+  return {
+    status: 'ready',
+    postId: post.id,
+    postUrl: `https://www.reddit.com/r/${subredditName}/comments/${post.id}`,
+    created: true,
   };
 };

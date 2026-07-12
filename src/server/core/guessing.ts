@@ -11,7 +11,9 @@ import {
 } from './storage';
 import { scoreGuess } from './matching';
 import { computeLevel, XP_REWARDS } from './leveling';
-import type { GuessResponse } from '../../shared/api';
+import { awardMilestoneBadges } from './badges';
+import { DAILY_BONUS_XP, getCipherOfDayPostId } from './dailyChallenge';
+import { ordinal, rankMedal, type GuessResponse } from '../../shared/api';
 
 export type ProcessGuessInput = {
   postId: string;
@@ -35,6 +37,7 @@ const emptyMiss = (): GuessResponse => ({
   closeMatch: false,
   xpAwarded: 0,
   firstCrack: false,
+  solveRank: 0,
   newStreak: 0,
   newXp: 0,
   newLevel: 0,
@@ -54,17 +57,28 @@ export const processGuess = async (input: ProcessGuessInput): Promise<GuessRespo
   if (commentId) {
     const already = await redis.get(keys.processedComment(commentId));
     if (already) return null;
-    await redis.set(keys.processedComment(commentId), '1');
+    // Ephemeral dedup marker (Section 8's "CommentGuess... processed not
+    // stored long-term") — only needs to outlive the brief race between the
+    // in-app POST and the onCommentSubmit trigger firing for the same comment.
+    await redis.set(keys.processedComment(commentId), '1', {
+      expiration: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    });
   }
 
   const cipher = await loadCipher(postId);
   if (!cipher) return null;
+  // Defensive backfill for cipher records created before live-stats tracking.
+  cipher.totalGuesses ??= 0;
+  cipher.uniqueGuessers ??= [];
+  cipher.skips ??= 0;
 
   // Same user + same normalized guess text only tallies once (blocks API/trigger double-count).
   const tallyKey = keys.guessTally(postId, userId, trimmed.toLowerCase());
   const alreadyTallied = await redis.get(tallyKey);
   if (!alreadyTallied) {
     cipher.guessDistribution[trimmed] = (cipher.guessDistribution[trimmed] ?? 0) + 1;
+    cipher.totalGuesses += 1;
+    if (!cipher.uniqueGuessers.includes(userId)) cipher.uniqueGuessers.push(userId);
     await redis.set(tallyKey, '1');
   }
 
@@ -87,6 +101,7 @@ export const processGuess = async (input: ProcessGuessInput): Promise<GuessRespo
       closeMatch: false,
       xpAwarded: 0,
       firstCrack: false,
+      solveRank: 0,
       newStreak: 0,
       newXp: 0,
       newLevel: 0,
@@ -96,6 +111,7 @@ export const processGuess = async (input: ProcessGuessInput): Promise<GuessRespo
   }
 
   const firstCrack = cipher.decoderList.length === 0;
+  const solveRank = cipher.decoderList.length + 1;
   cipher.decoderList.push({ userId, username, guessedAt: Date.now() });
   if (firstCrack) {
     cipher.firstCrackUserId = userId;
@@ -107,13 +123,18 @@ export const processGuess = async (input: ProcessGuessInput): Promise<GuessRespo
   let profile = profileRaw ? JSON.parse(profileRaw) : defaultUserProfile(userId, username);
   const prevLevel = computeLevel(profile.xp).level;
 
-  const xpAwarded = XP_REWARDS.CORRECT_GUESS + (firstCrack ? XP_REWARDS.FIRST_CRACK_BONUS : 0);
+  const isCipherOfDay = (await getCipherOfDayPostId()) === postId;
+  const xpAwarded =
+    XP_REWARDS.CORRECT_GUESS +
+    (firstCrack ? XP_REWARDS.FIRST_CRACK_BONUS : 0) +
+    (isCipherOfDay ? DAILY_BONUS_XP : 0);
   profile.xp += xpAwarded;
   profile.totalDecodes += 1;
   if (firstCrack && !profile.badges.includes('first-crack')) {
     profile.badges.push('first-crack');
   }
   profile = applyStreak(profile);
+  profile.badges = awardMilestoneBadges(profile);
   await redis.set(keys.user(userId), JSON.stringify(profile));
 
   const newTier = computeLevel(profile.xp);
@@ -122,12 +143,12 @@ export const processGuess = async (input: ProcessGuessInput): Promise<GuessRespo
 
   if (replyOnMatch && commentId) {
     const streakLine = profile.currentStreak > 1 ? ` · 🔥 ${profile.currentStreak}-day streak` : '';
-    const firstLine = firstCrack ? ' · 🥇 First Crack!' : '';
+    const rankLine = firstCrack ? ' · 🥇 First Crack!' : ` · ${rankMedal(solveRank)} ${ordinal(solveRank)} to solve this one`;
     const bareId = commentId.replace(/^t1_/, '');
     // Prefix lets the comment trigger skip app replies (avoid recursion).
     await reddit.submitComment({
       id: `t1_${bareId}`,
-      text: `✅ Cracked it! (auto-scored) · +${xpAwarded} XP${streakLine}${firstLine}`,
+      text: `✅ Cracked it! (auto-scored) · +${xpAwarded} XP${streakLine}${rankLine}`,
       runAs: 'APP',
     });
   }
@@ -138,6 +159,7 @@ export const processGuess = async (input: ProcessGuessInput): Promise<GuessRespo
     closeMatch: false,
     xpAwarded,
     firstCrack,
+    solveRank,
     newStreak: profile.currentStreak,
     newXp: profile.xp,
     newLevel: newTier.level,

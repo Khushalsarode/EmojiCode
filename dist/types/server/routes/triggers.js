@@ -3,24 +3,26 @@ import { redis } from '@devvit/web/server';
 import { AccountTypeV2 } from '@devvit/protos/json/devvit/reddit/v2alpha/userv2.js';
 import { keys } from '../core/storage';
 import { processGuess } from '../core/guessing';
-import { createCipherPost } from '../core/post';
+import { getOrCreateHubPost } from '../core/post';
+import { isCommand, handleCommand } from '../core/commands';
 export const triggers = new Hono();
 triggers.post('/on-app-install', async (c) => {
     const input = await c.req.json();
     console.log(`EmojiCode installed (trigger: ${input.type})`);
-    // Seed one starter post so the feed isn't empty for the first visitors
-    // (Section 17 risk mitigation). Failures are non-fatal.
+    // Create the persistent "Welcome to EmojiCode" hub post (Section 13.1's
+    // Home Menu) so the feed isn't empty for first visitors (Section 17 risk
+    // mitigation) — idempotent, and failures are non-fatal.
     try {
-        const result = await createCipherPost(['🎬', '🦁', '👑', '🌅', '🎶'], 'The Lion King');
-        if (result.status === 'published') {
-            console.log(`Seeded starter cipher: ${result.postId}`);
+        const result = await getOrCreateHubPost();
+        if (result.status === 'ready') {
+            console.log(`Hub post ready: ${result.postId} (created: ${result.created})`);
         }
         else {
-            console.log(`Seed skipped: ${result.reason}`);
+            console.log(`Hub post creation skipped: ${result.reason}`);
         }
     }
     catch (err) {
-        console.log('Seed failed (non-fatal)', err);
+        console.log('Hub post creation failed (non-fatal)', err);
     }
     return c.json({});
 });
@@ -56,6 +58,10 @@ triggers.post('/on-comment-submit', async (c) => {
         : postId.startsWith('t3_')
             ? postId.slice(3)
             : `t3_${postId}`;
+    if (isCommand(comment.body)) {
+        await handleCommand(comment.id, resolvedPostId, comment.body);
+        return c.json({});
+    }
     await processGuess({
         postId: resolvedPostId,
         userId: author.id,

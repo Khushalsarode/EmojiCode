@@ -1,20 +1,20 @@
 import { Hono } from 'hono';
-import { createCipherPost } from '../core/post';
+import { getOrCreateHubPost } from '../core/post';
 export const menu = new Hono();
-// Subreddit menu shortcut. The real "Create a Cipher" flow lives in the
-// in-app modal inside an existing EmojiCode post (Section 13.1 / 13.5), but
-// that's a chicken-and-egg problem on a brand-new subreddit with zero posts —
-// there's nothing to open yet. So this menu item seeds one starter cipher via
-// the same createCipherPost() path and jumps the mod straight to it; from
-// there, every subsequent cipher goes through the normal in-app modal.
+// Subreddit menu shortcut — jumps to the persistent "Welcome to EmojiCode"
+// hub post (Section 13.1's Home Menu), creating it once if it doesn't exist
+// yet. This is the app's one true entry point: every cipher post is created
+// from the hub's own "✨ Create a Cipher" button, not from this menu.
 menu.post('/open-submit-form', async (c) => {
-    const result = await createCipherPost(['🎬', '🦁', '👑', '🌅', '🎶'], 'The Lion King');
+    const result = await getOrCreateHubPost();
     if (result.status === 'rejected') {
-        return c.json({ showToast: `Couldn't seed a starter post: ${result.reason}` }, 200);
+        return c.json({ showToast: `Couldn't open the EmojiCode hub: ${result.reason}` }, 200);
     }
     return c.json({
         navigateTo: result.postUrl,
-        showToast: { text: 'Starter cipher posted! Tap ✨ Create a Cipher inside it to post your own.', appearance: 'success' },
+        showToast: result.created
+            ? { text: 'EmojiCode hub created! Tap ✨ Create a Cipher to post your first one.', appearance: 'success' }
+            : undefined,
     }, 200);
 });
 //# sourceMappingURL=menu.js.map

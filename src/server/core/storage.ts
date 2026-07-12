@@ -12,6 +12,21 @@ export const keys = {
     `tally:${postId}:${userId}:${normalizedGuess}`,
   leaderboardAllTime: () => 'leaderboard:alltime',
   leaderboardWeekly: (isoWeek: string) => `leaderboard:weekly:${isoWeek}`,
+  // Separate "Cipher Masters" ranking (Section 7) — submitters ranked by
+  // upvote-driven creativity score, distinct from the Decoders board above
+  // (which ranks by total XP, dominated by guessing activity).
+  cipherMasterAllTime: () => 'cipherMaster:alltime',
+  cipherMasterWeekly: (isoWeek: string) => `cipherMaster:weekly:${isoWeek}`,
+  // One persistent "Welcome to EmojiCode" hub post per subreddit install
+  // (Section 13.1's Home Menu) — never a cipher itself, just an entry point.
+  hubPost: () => 'hub:postId',
+  // Sorted set of live cipher posts by upvotes, powering the Trending rail
+  // (Section 7.1's Level 6 "Featured eligibility" reward).
+  trending: () => 'trending:alltime',
+  // Today's featured pick (core/dailyChallenge.ts) — a single JSON value
+  // `{ postId, date }`, refreshed once a day by the daily cron. Retention
+  // hook: gives everyone a specific reason to open the app *today*.
+  cipherOfDay: () => 'cipherOfDay',
 };
 
 export const todayUtc = (): string => new Date().toISOString().slice(0, 10);
@@ -58,14 +73,24 @@ export type StoredCipherPost = {
   submitterUsername: string;
   emojis: string[];
   category: string;
+  language: string;
   answer: string;
   publishedAt: number;
   upvotes: number;
+  // Cumulative XP already awarded to the submitter from this post's upvotes —
+  // tracked so re-syncing live vote counts never double-awards past the
+  // Section 7.1 cap (MAX_UPVOTE_XP_PER_POST).
+  upvoteXpAwarded: number;
   hardMode: boolean;
   decoderList: { userId: string; username: string; guessedAt: number }[];
   firstCrackUserId: string | null;
   firstCrackUsername: string | null;
   guessDistribution: Record<string, number>; // raw guess text -> count, censored at read time
+  // Live-stats tracking for the Solved Recap's difficulty rating (Pixelary-style
+  // "unique players / total guesses / skip rate / solve rate").
+  totalGuesses: number;
+  uniqueGuessers: string[]; // userIds of everyone who guessed (right or wrong)
+  skips: number; // "Give up" taps
 };
 
 // Applies a correct-guess streak update against "today" in UTC. Kept as a

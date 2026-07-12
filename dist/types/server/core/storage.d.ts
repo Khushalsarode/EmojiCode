@@ -7,6 +7,11 @@ export declare const keys: {
     guessTally: (postId: string, userId: string, normalizedGuess: string) => string;
     leaderboardAllTime: () => string;
     leaderboardWeekly: (isoWeek: string) => string;
+    cipherMasterAllTime: () => string;
+    cipherMasterWeekly: (isoWeek: string) => string;
+    hubPost: () => string;
+    trending: () => string;
+    cipherOfDay: () => string;
 };
 export declare const todayUtc: () => string;
 export declare const currentIsoWeek: () => string;
@@ -30,9 +35,11 @@ export type StoredCipherPost = {
     submitterUsername: string;
     emojis: string[];
     category: string;
+    language: string;
     answer: string;
     publishedAt: number;
     upvotes: number;
+    upvoteXpAwarded: number;
     hardMode: boolean;
     decoderList: {
         userId: string;
@@ -42,5 +49,8 @@ export type StoredCipherPost = {
     firstCrackUserId: string | null;
     firstCrackUsername: string | null;
     guessDistribution: Record<string, number>;
+    totalGuesses: number;
+    uniqueGuessers: string[];
+    skips: number;
 };
 export declare const applyStreak: (profile: StoredUserProfile) => StoredUserProfile;

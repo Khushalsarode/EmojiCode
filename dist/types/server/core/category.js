@@ -1,5 +1,6 @@
-// Lightweight auto-category tagging (stretch goal from Section 9.3 / MVP-adjacent).
-// Keyword heuristics only — no external API. Swap later for a real classifier.
+// Auto-category inference (Section 9.3) — used as the pre-filled default in
+// the submission form, but the submitter always has final say (Section 13.5):
+// whatever they pick is what gets stored, this is just a smart starting point.
 const RULES = [
     {
         category: 'Movie',
@@ -9,11 +10,23 @@ const RULES = [
         ],
     },
     {
-        category: 'Show',
+        category: 'TV Series',
         patterns: [
-            /\b(show|series|sitcom|anime|netflix|hbo|tv)\b/i,
+            /\b(show|series|sitcom|netflix|hbo|tv)\b/i,
             /\b(friends|office|breaking bad|stranger things|game of thrones|seinfeld|simpsons)\b/i,
         ],
+    },
+    {
+        category: 'Music',
+        patterns: [/\b(song|album|band|singer|rapper|music|lyrics|concert)\b/i],
+    },
+    {
+        category: 'Comics',
+        patterns: [/\b(comic|manga|graphic novel|marvel comics|dc comics|superhero)\b/i],
+    },
+    {
+        category: 'Anime',
+        patterns: [/\b(anime|naruto|one piece|dragon ball|studio ghibli|shonen)\b/i],
     },
     {
         category: 'Game',

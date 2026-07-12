@@ -10,6 +10,21 @@ export const keys = {
     guessTally: (postId, userId, normalizedGuess) => `tally:${postId}:${userId}:${normalizedGuess}`,
     leaderboardAllTime: () => 'leaderboard:alltime',
     leaderboardWeekly: (isoWeek) => `leaderboard:weekly:${isoWeek}`,
+    // Separate "Cipher Masters" ranking (Section 7) — submitters ranked by
+    // upvote-driven creativity score, distinct from the Decoders board above
+    // (which ranks by total XP, dominated by guessing activity).
+    cipherMasterAllTime: () => 'cipherMaster:alltime',
+    cipherMasterWeekly: (isoWeek) => `cipherMaster:weekly:${isoWeek}`,
+    // One persistent "Welcome to EmojiCode" hub post per subreddit install
+    // (Section 13.1's Home Menu) — never a cipher itself, just an entry point.
+    hubPost: () => 'hub:postId',
+    // Sorted set of live cipher posts by upvotes, powering the Trending rail
+    // (Section 7.1's Level 6 "Featured eligibility" reward).
+    trending: () => 'trending:alltime',
+    // Today's featured pick (core/dailyChallenge.ts) — a single JSON value
+    // `{ postId, date }`, refreshed once a day by the daily cron. Retention
+    // hook: gives everyone a specific reason to open the app *today*.
+    cipherOfDay: () => 'cipherOfDay',
 };
 export const todayUtc = () => new Date().toISOString().slice(0, 10);
 export const currentIsoWeek = () => {

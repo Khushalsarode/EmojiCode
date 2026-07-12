@@ -1,6 +1,6 @@
 {
   "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
-  "name": "emojiode",
+  "name": "emojicode",
   "post": {
     "dir": "dist/client",
     "entrypoints": {
@@ -27,8 +27,8 @@
   "menu": {
     "items": [
       {
-        "label": "Create a Cipher",
-        "description": "Post a new 5-emoji cipher to the subreddit",
+        "label": "Open EmojiCode",
+        "description": "Go to the EmojiCode home hub — create a cipher, check rewards, view the leaderboard",
         "location": "subreddit",
         "forUserType": "user",
         "endpoint": "/internal/menu/open-submit-form"
@@ -39,11 +39,23 @@
     "onAppInstall": "/internal/triggers/on-app-install",
     "onCommentSubmit": "/internal/triggers/on-comment-submit"
   },
+  "scheduler": {
+    "tasks": {
+      "leaderboard-digest": {
+        "endpoint": "/internal/cron/leaderboard-digest",
+        "cron": "0 0 * * 0"
+      },
+      "daily-cipher": {
+        "endpoint": "/internal/cron/daily-cipher",
+        "cron": "0 0 * * *"
+      }
+    }
+  },
   "scripts": {
     "dev": "vite build --watch",
     "build": "vite build"
   },
   "dev": {
-    "subreddit": "emojiode_dev"
+    "subreddit": "emojicode_dev"
   }
 }

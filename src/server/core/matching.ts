@@ -7,6 +7,8 @@
 // playtesting. Swap `isMatch` for an embedding-similarity call later —
 // callers only care about the boolean/score contract below.
 
+import { containsProfanity } from './wordFilter';
+
 const normalize = (text: string): string =>
   text
     .toLowerCase()
@@ -67,12 +69,31 @@ export const scoreGuess = (guessText: string, answer: string): MatchResult => {
 
 // Partially censors a wrong guess for the Solved Recap screen (Section 13.6),
 // e.g. "The Jungle Book" -> "T** J****e B**k". First and last letter of each
-// word survive; everything else is masked.
-export const censorGuess = (text: string): string =>
-  text
+// word survive; everything else is masked. Profanity/adult-language guesses
+// get fully masked instead — those never show their shape, matching Pixelary's
+// own harder line on bad words vs. ordinary wrong guesses.
+export const censorGuess = (text: string): string => {
+  if (containsProfanity(text)) {
+    return text
+      .split(' ')
+      .map((word) => '*'.repeat(word.length))
+      .join(' ');
+  }
+
+  return text
     .split(' ')
     .map((word) => {
       if (word.length <= 2) return word;
       return word[0] + '*'.repeat(word.length - 2) + word[word.length - 1];
     })
+    .join(' ');
+};
+
+// Wordle-style blank pattern for the guess screen's optional Hint button —
+// reveals word count/shape only (e.g. "The Lion King" -> "___ ____ ____"),
+// never a letter of the actual answer.
+export const hintPattern = (answer: string): string =>
+  answer
+    .split(' ')
+    .map((word) => '_'.repeat(word.length))
     .join(' ');
