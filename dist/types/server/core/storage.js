@@ -4,9 +4,14 @@
 export const keys = {
     cipher: (postId) => `cipher:${postId}`,
     user: (userId) => `user:${userId}`,
+    userCiphers: (userId) => `user:${userId}:ciphers`,
+    dailySubs: (userId, day) => `subs:${userId}:${day}`,
+    processedComment: (commentId) => `processedComment:${commentId}`,
+    guessTally: (postId, userId, normalizedGuess) => `tally:${postId}:${userId}:${normalizedGuess}`,
     leaderboardAllTime: () => 'leaderboard:alltime',
     leaderboardWeekly: (isoWeek) => `leaderboard:weekly:${isoWeek}`,
 };
+export const todayUtc = () => new Date().toISOString().slice(0, 10);
 export const currentIsoWeek = () => {
     const now = new Date();
     const jan1 = new Date(now.getFullYear(), 0, 1);

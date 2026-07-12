@@ -29,7 +29,9 @@ export const Leaderboard = ({ onClose }: Props) => {
       <div className="bg-white dark:bg-gray-900 rounded-xl p-5 w-full max-w-sm flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <span className="font-heading font-bold text-lg">🏆 Leaderboard</span>
-          <button onClick={onClose} className="text-gray-400">✕</button>
+          <button onClick={onClose} className="text-gray-400">
+            ✕
+          </button>
         </div>
 
         <select
@@ -41,7 +43,7 @@ export const Leaderboard = ({ onClose }: Props) => {
           <option value="alltime">All-Time</option>
         </select>
 
-        <div className="flex flex-col gap-2 max-h-80 overflow-y-auto">
+        <div className="flex flex-col gap-2 max-h-72 overflow-y-auto">
           {!data ? (
             <div className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">Loading…</div>
           ) : data.entries.length === 0 ? (
@@ -54,12 +56,20 @@ export const Leaderboard = ({ onClose }: Props) => {
                   <span className="text-gray-800 dark:text-gray-100">u/{entry.username}</span>
                   <div className="text-xs text-gray-500 dark:text-gray-400 ml-6">
                     🏅 {entry.label} · {entry.score} pts
+                    {entry.streak > 0 ? ` · 🔥 ${entry.streak}` : ''}
                   </div>
                 </div>
               </div>
             ))
           )}
         </div>
+
+        {data && data.viewerRank !== null && (
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-2 text-sm text-gray-700 dark:text-gray-300">
+            You: #{data.viewerRank}
+            {data.viewerStreak > 0 ? ` · 🔥 ${data.viewerStreak}-day streak` : ''}
+          </div>
+        )}
       </div>
     </div>
   );

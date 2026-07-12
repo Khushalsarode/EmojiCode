@@ -5,9 +5,16 @@
 export const keys = {
   cipher: (postId: string) => `cipher:${postId}`,
   user: (userId: string) => `user:${userId}`,
+  userCiphers: (userId: string) => `user:${userId}:ciphers`,
+  dailySubs: (userId: string, day: string) => `subs:${userId}:${day}`,
+  processedComment: (commentId: string) => `processedComment:${commentId}`,
+  guessTally: (postId: string, userId: string, normalizedGuess: string) =>
+    `tally:${postId}:${userId}:${normalizedGuess}`,
   leaderboardAllTime: () => 'leaderboard:alltime',
   leaderboardWeekly: (isoWeek: string) => `leaderboard:weekly:${isoWeek}`,
 };
+
+export const todayUtc = (): string => new Date().toISOString().slice(0, 10);
 
 export const currentIsoWeek = (): string => {
   const now = new Date();
@@ -54,6 +61,7 @@ export type StoredCipherPost = {
   answer: string;
   publishedAt: number;
   upvotes: number;
+  hardMode: boolean;
   decoderList: { userId: string; username: string; guessedAt: number }[];
   firstCrackUserId: string | null;
   firstCrackUsername: string | null;

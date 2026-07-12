@@ -8,13 +8,24 @@ import { createRoot } from 'react-dom/client';
 import { requestExpandedMode } from '@devvit/web/client';
 import type { InitResponse } from '../shared/api';
 
+const timeAgo = (ts: number): string => {
+  const mins = Math.floor((Date.now() - ts) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+};
+
 export const Splash = () => {
   const [data, setData] = useState<InitResponse | null>(null);
 
   useEffect(() => {
     fetch('/api/init')
       .then((res) => res.json())
-      .then((json: InitResponse) => setData(json))
+      .then((json: InitResponse) => {
+        if (json.type === 'init') setData(json);
+      })
       .catch((err) => console.error('splash init failed', err));
   }, []);
 
@@ -22,14 +33,13 @@ export const Splash = () => {
 
   return (
     <div className="flex relative flex-col justify-center items-center min-h-screen gap-3 px-4 bg-white dark:bg-gray-900">
-      <div className="text-xs text-gray-500 dark:text-gray-400">
-        🔐 EmojiCode
-      </div>
+      <div className="text-xs text-gray-500 dark:text-gray-400">🔐 EmojiCode</div>
       {post && (
         <div className="text-xs text-gray-400 dark:text-gray-500 text-center">
           Posted by u/{post.submitterUsername}
           <br />
-          🏅 {post.submitterLabel} · just now
+          🏅 {post.submitterLabel} · {timeAgo(post.publishedAt)}
+          {post.hardMode ? ' · 🔥 Hard' : ''}
         </div>
       )}
 
@@ -49,8 +59,13 @@ export const Splash = () => {
             />
           </div>
           <span className="text-xs text-gray-500 dark:text-gray-400">
-            {post.decoderCount} redditors have cracked it
+            {post.decoderCount === 0
+              ? "Nobody's cracked this yet. Bold move."
+              : `${post.decoderCount} redditors have cracked it`}
           </span>
+          {post.category !== 'Other' && (
+            <span className="text-xs text-gray-400 dark:text-gray-500">Category: {post.category}</span>
+          )}
         </div>
       )}
 

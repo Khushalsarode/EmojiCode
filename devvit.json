@@ -1,6 +1,6 @@
 {
   "$schema": "https://developers.reddit.com/schema/config-file.v1.json",
-  "name": "emojicode",
+  "name": "emojiode",
   "post": {
     "dir": "dist/client",
     "entrypoints": {
@@ -17,6 +17,13 @@
     "dir": "dist/server",
     "entry": "index.cjs"
   },
+  "permissions": {
+    "redis": true,
+    "reddit": {
+      "enable": true,
+      "asUser": ["SUBMIT_POST", "SUBMIT_COMMENT"]
+    }
+  },
   "menu": {
     "items": [
       {
@@ -29,13 +36,14 @@
     ]
   },
   "triggers": {
-    "onAppInstall": "/internal/triggers/on-app-install"
+    "onAppInstall": "/internal/triggers/on-app-install",
+    "onCommentSubmit": "/internal/triggers/on-comment-submit"
   },
   "scripts": {
     "dev": "vite build --watch",
     "build": "vite build"
   },
   "dev": {
-    "subreddit": "emojicode_dev"
+    "subreddit": "emojiode_dev"
   }
 }

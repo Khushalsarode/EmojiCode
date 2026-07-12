@@ -24,6 +24,7 @@ export type CipherPost = {
   decoderCount: number;
   firstCrackUsername: string | null;
   upvotes: number;
+  hardMode: boolean;
   // answer is intentionally NEVER sent to the client until the post is solved
   // by the requesting user, or they explicitly "give up" (Section 13.3).
 };
@@ -55,6 +56,7 @@ export type GuessResponse = {
 export type SubmitCipherRequest = {
   emojis: Emoji[]; // must be exactly 5
   answer: string;
+  hardMode?: boolean; // Level 3+ perk
 };
 
 export type SubmitCipherResponse =
@@ -74,6 +76,12 @@ export type LeaderboardResponse = {
   window: 'weekly' | 'alltime';
   entries: LeaderboardEntry[];
   viewerRank: number | null;
+  viewerStreak: number;
+};
+
+export type MyCiphersResponse = {
+  type: 'my-ciphers';
+  ciphers: (CipherPost & { postUrl: string })[];
 };
 
 export type RecapResponse = {

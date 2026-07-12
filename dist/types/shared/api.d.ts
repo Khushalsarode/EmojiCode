@@ -16,6 +16,7 @@ export type CipherPost = {
     decoderCount: number;
     firstCrackUsername: string | null;
     upvotes: number;
+    hardMode: boolean;
 };
 export type InitResponse = {
     type: 'init';
@@ -41,6 +42,7 @@ export type GuessResponse = {
 export type SubmitCipherRequest = {
     emojis: Emoji[];
     answer: string;
+    hardMode?: boolean;
 };
 export type SubmitCipherResponse = {
     status: 'published';
@@ -62,6 +64,13 @@ export type LeaderboardResponse = {
     window: 'weekly' | 'alltime';
     entries: LeaderboardEntry[];
     viewerRank: number | null;
+    viewerStreak: number;
+};
+export type MyCiphersResponse = {
+    type: 'my-ciphers';
+    ciphers: (CipherPost & {
+        postUrl: string;
+    })[];
 };
 export type RecapResponse = {
     type: 'recap';

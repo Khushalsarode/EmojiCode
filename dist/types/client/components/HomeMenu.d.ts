@@ -6,6 +6,7 @@ type Props = {
     onOpenRewards: () => void;
     onOpenLeaderboard: () => void;
     onOpenLevelUp: () => void;
+    onOpenMyCiphers: () => void;
 };
-export declare const HomeMenu: ({ profile, onClose, onCreateCipher, onOpenRewards, onOpenLeaderboard, onOpenLevelUp, }: Props) => import("react").JSX.Element;
+export declare const HomeMenu: ({ profile, onClose, onCreateCipher, onOpenRewards, onOpenLeaderboard, onOpenLevelUp, onOpenMyCiphers, }: Props) => import("react").JSX.Element;
 export {};

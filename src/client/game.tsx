@@ -13,15 +13,29 @@ import { MyRewards } from './components/MyRewards';
 import { LevelUp } from './components/LevelUp';
 import { SolvedRecap } from './components/SolvedRecap';
 import { Leaderboard } from './components/Leaderboard';
+import { MyCiphers } from './components/MyCiphers';
 import type { SubmitCipherResponse } from '../shared/api';
 
-type Screen = 'menu' | 'rewards' | 'levelup' | 'recap' | 'leaderboard' | null;
+type Screen = 'menu' | 'rewards' | 'levelup' | 'recap' | 'leaderboard' | 'myciphers' | null;
 
-const EMOJI_CHOICES = ['🎬', '🦁', '👑', '🌅', '🎶', '🐶', '🚀', '🏰', '🔥', '🌊', '🎮', '📺'];
+const EMOJI_CHOICES = [
+  '🎬', '🦁', '👑', '🌅', '🎶', '🐶', '🚀', '🏰', '🔥', '🌊', '🎮', '📺',
+  '👻', '🧙', '🍕', '💍', '🦸', '🐉', '⚽', '🎸', '📚', '🧠', '💤', '🏆',
+  '🕵️', '🌙', '❄️', '🌋', '🧩', '🎯',
+];
 
-const SubmitCipherModal = ({ onClose }: { onClose: () => void }) => {
+const ONBOARD_KEY = 'emojicode-onboarded';
+
+const SubmitCipherModal = ({
+  onClose,
+  canHardMode,
+}: {
+  onClose: () => void;
+  canHardMode: boolean;
+}) => {
   const [slots, setSlots] = useState<string[]>([]);
   const [answer, setAnswer] = useState('');
+  const [hardMode, setHardMode] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [posted, setPosted] = useState<string | null>(null);
@@ -40,7 +54,7 @@ const SubmitCipherModal = ({ onClose }: { onClose: () => void }) => {
       const res = await fetch('/api/submit-cipher', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ emojis: slots, answer }),
+        body: JSON.stringify({ emojis: slots, answer, hardMode: canHardMode && hardMode }),
       });
       const json: SubmitCipherResponse = await res.json();
       if (json.status === 'rejected') {
@@ -57,7 +71,7 @@ const SubmitCipherModal = ({ onClose }: { onClose: () => void }) => {
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-xl p-5 w-full max-w-sm flex flex-col gap-4">
+      <div className="bg-white dark:bg-gray-900 rounded-xl p-5 w-full max-w-sm flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
         {posted ? (
           <>
             <div className="text-lg font-heading font-bold text-center">🎉 Posted!</div>
@@ -76,7 +90,9 @@ const SubmitCipherModal = ({ onClose }: { onClose: () => void }) => {
           <>
             <div className="flex items-center justify-between">
               <span className="font-heading font-bold text-lg">✨ Create a Cipher</span>
-              <button onClick={onClose} className="text-gray-400">✕</button>
+              <button onClick={onClose} className="text-gray-400">
+                ✕
+              </button>
             </div>
 
             <div>
@@ -92,11 +108,11 @@ const SubmitCipherModal = ({ onClose }: { onClose: () => void }) => {
                   </button>
                 ))}
               </div>
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap gap-1 max-h-28 overflow-y-auto">
                 {EMOJI_CHOICES.map((e) => (
                   <button
                     key={e}
-                    className="w-9 h-9 rounded-md border border-gray-200 dark:border-gray-700 text-lg"
+                    className="w-9 h-9 rounded-md border border-gray-200 dark:border-gray-700 text-lg disabled:opacity-40"
                     onClick={() => addEmoji(e)}
                     disabled={slots.length >= 5}
                   >
@@ -116,7 +132,22 @@ const SubmitCipherModal = ({ onClose }: { onClose: () => void }) => {
               />
             </div>
 
-            {error && <div className="text-sm" style={{ color: 'var(--color-danger)' }}>{error}</div>}
+            {canHardMode && (
+              <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                <input
+                  type="checkbox"
+                  checked={hardMode}
+                  onChange={(e) => setHardMode(e.target.checked)}
+                />
+                🔥 Hard Mode tag
+              </label>
+            )}
+
+            {error && (
+              <div className="text-sm" style={{ color: 'var(--color-danger)' }}>
+                {error}
+              </div>
+            )}
 
             <button
               className="h-11 rounded-lg text-white font-medium disabled:opacity-40"
@@ -147,6 +178,22 @@ export const App = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [screen, setScreen] = useState<Screen>(null);
   const [solved, setSolved] = useState(false);
+  const [showOnboard, setShowOnboard] = useState(() => {
+    try {
+      return !localStorage.getItem(ONBOARD_KEY);
+    } catch {
+      return true;
+    }
+  });
+
+  const dismissOnboard = () => {
+    setShowOnboard(false);
+    try {
+      localStorage.setItem(ONBOARD_KEY, '1');
+    } catch {
+      // ignore — iframe storage can be restricted
+    }
+  };
 
   const post = data?.post;
 
@@ -175,6 +222,7 @@ export const App = () => {
       });
       setSolved(true);
       void refreshProfile();
+      if (result.leveledUp) setScreen('levelup');
     } else if (result.closeMatch) {
       setFeedback({ matched: false, closeMatch: true, message: '🟡 So close — not quite it' });
     } else {
@@ -199,12 +247,13 @@ export const App = () => {
   }
 
   const isSolved = solved || Boolean(data?.viewerHasSolved);
+  const canHardMode = Boolean(profile && profile.level >= 3);
 
   return (
     <div className="flex flex-col min-h-screen bg-white dark:bg-gray-900 px-4 py-6 gap-5">
       <div className="flex items-center justify-between">
         <button
-          className="text-xl text-gray-500 dark:text-gray-400"
+          className="text-xl text-gray-500 dark:text-gray-400 min-w-11 min-h-11"
           onClick={() => setScreen('menu')}
           aria-label="Menu"
         >
@@ -212,7 +261,7 @@ export const App = () => {
         </button>
         {isSolved && (
           <button
-            className="text-xs text-gray-500 dark:text-gray-400 underline"
+            className="text-xs text-gray-500 dark:text-gray-400 underline min-h-11"
             onClick={() => setScreen('recap')}
           >
             📊 Recap
@@ -222,10 +271,17 @@ export const App = () => {
 
       {post && (
         <>
+          {post.hardMode && (
+            <div className="text-center text-xs font-medium" style={{ color: 'var(--color-warning)' }}>
+              🔥 Hard Mode
+            </div>
+          )}
           <div className="text-6xl text-center tracking-widest">{post.emojis.join(' ')}</div>
 
           <div className="text-center text-sm text-gray-500 dark:text-gray-400">
-            {post.decoderCount} players cracked it
+            {post.decoderCount === 0
+              ? "Nobody's cracked this yet. Bold move."
+              : `${post.decoderCount} players cracked it`}
             {post.firstCrackUsername && <> · 🥇 u/{post.firstCrackUsername}</>}
           </div>
 
@@ -233,7 +289,7 @@ export const App = () => {
             <div className="text-center text-base font-heading font-semibold text-gray-800 dark:text-gray-100">
               The answer was: {revealedAnswer}
             </div>
-          ) : (
+          ) : !isSolved ? (
             <div className="flex flex-col gap-2 items-center">
               <div className="flex w-full max-w-sm gap-2">
                 <input
@@ -269,9 +325,16 @@ export const App = () => {
                 </div>
               )}
 
-              <button className="text-xs text-gray-400 dark:text-gray-500 underline mt-1" onClick={handleGiveUp}>
+              <button
+                className="text-xs text-gray-400 dark:text-gray-500 underline mt-1 min-h-11"
+                onClick={handleGiveUp}
+              >
                 🏳 Give up
               </button>
+            </div>
+          ) : (
+            <div className="text-center text-sm font-medium" style={{ color: 'var(--color-success)' }}>
+              ✅ You&apos;ve cracked this one
             </div>
           )}
         </>
@@ -284,16 +347,29 @@ export const App = () => {
         >
           ✨ Create a Cipher
         </button>
-        <button
-          className="w-full h-9 text-xs text-gray-400 dark:text-gray-500 underline"
-          onClick={() => navigateTo('https://www.reddit.com/r/Devvit')}
-        >
-          r/Devvit
-        </button>
       </div>
+
+      {showOnboard && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-5 w-full max-w-sm flex flex-col gap-3">
+            <p className="text-sm text-gray-700 dark:text-gray-200">
+              👋 New here? Guess what these 5 emojis mean — right in the comments. Or hit ✨ to post
+              your own. That&apos;s it.
+            </p>
+            <button
+              className="h-11 rounded-lg text-white font-medium"
+              style={{ backgroundColor: 'var(--color-primary)' }}
+              onClick={dismissOnboard}
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
 
       {modalOpen && (
         <SubmitCipherModal
+          canHardMode={canHardMode}
           onClose={() => {
             setModalOpen(false);
             void refreshProfile();
@@ -309,11 +385,15 @@ export const App = () => {
           onOpenRewards={() => setScreen('rewards')}
           onOpenLeaderboard={() => setScreen('leaderboard')}
           onOpenLevelUp={() => setScreen('levelup')}
+          onOpenMyCiphers={() => setScreen('myciphers')}
         />
       )}
       {screen === 'rewards' && <MyRewards profile={profile} onClose={() => setScreen('menu')} />}
       {screen === 'levelup' && profile && <LevelUp profile={profile} onClose={() => setScreen('menu')} />}
       {screen === 'leaderboard' && <Leaderboard onClose={() => setScreen('menu')} />}
+      {screen === 'myciphers' && (
+        <MyCiphers onClose={() => setScreen('menu')} onCreateCipher={openCreateCipher} />
+      )}
       {screen === 'recap' && <SolvedRecap onClose={() => setScreen(null)} onCreateCipher={openCreateCipher} />}
     </div>
   );

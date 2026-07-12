@@ -1,9 +1,14 @@
 export declare const keys: {
     cipher: (postId: string) => string;
     user: (userId: string) => string;
+    userCiphers: (userId: string) => string;
+    dailySubs: (userId: string, day: string) => string;
+    processedComment: (commentId: string) => string;
+    guessTally: (postId: string, userId: string, normalizedGuess: string) => string;
     leaderboardAllTime: () => string;
     leaderboardWeekly: (isoWeek: string) => string;
 };
+export declare const todayUtc: () => string;
 export declare const currentIsoWeek: () => string;
 export type StoredUserProfile = {
     userId: string;
@@ -28,6 +33,7 @@ export type StoredCipherPost = {
     answer: string;
     publishedAt: number;
     upvotes: number;
+    hardMode: boolean;
     decoderList: {
         userId: string;
         username: string;

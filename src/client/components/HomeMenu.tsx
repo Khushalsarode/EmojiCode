@@ -8,6 +8,7 @@ type Props = {
   onOpenRewards: () => void;
   onOpenLeaderboard: () => void;
   onOpenLevelUp: () => void;
+  onOpenMyCiphers: () => void;
 };
 
 export const HomeMenu = ({
@@ -17,6 +18,7 @@ export const HomeMenu = ({
   onOpenRewards,
   onOpenLeaderboard,
   onOpenLevelUp,
+  onOpenMyCiphers,
 }: Props) => {
   const levelProgress =
     profile && profile.xpRangeEnd !== null
@@ -46,9 +48,8 @@ export const HomeMenu = ({
           ✨ Create a Cipher
         </button>
         <button
-          className="h-11 rounded-lg border border-gray-300 dark:border-gray-600 font-medium text-gray-400 dark:text-gray-500"
-          disabled
-          title="Coming soon"
+          className="h-11 rounded-lg border border-gray-300 dark:border-gray-600 font-medium text-gray-800 dark:text-gray-100"
+          onClick={onOpenMyCiphers}
         >
           🔍 My Ciphers
         </button>
