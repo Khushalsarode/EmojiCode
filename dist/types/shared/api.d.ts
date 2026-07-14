@@ -153,6 +153,16 @@ export type ProfileResponse = {
     nextLevelLabel: string;
     approxDecodesToNextLevel: number;
 };
+export type SuggestAnswerRequest = {
+    answerText: string;
+};
+export type SuggestAnswerResponse = {
+    status: 'added';
+    acceptedAnswerCount: number;
+} | {
+    status: 'rejected';
+    reason: string;
+};
 export type ErrorResponse = {
     status: 'error';
     message: string;

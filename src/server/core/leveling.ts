@@ -71,6 +71,15 @@ export const baseDailySubmissionLimit = (level: number): number => {
   return limit;
 };
 
+// Optional Reddit flair sync (Section 7.1's "Optional stretch") — one color
+// per early level, escalating tier colors thereafter (gameplay perks stop
+// scaling meaningfully past Level 8, so flair color is the only signal left).
+const FLAIR_COLORS = ['#9CA3AF', '#CD7F32', '#C0C0C0', '#D4AF37', '#6C5CE7', '#4B3FC0'];
+export const flairColorForLevel = (level: number): string => {
+  const index = Math.min(Math.max(0, level - 1), FLAIR_COLORS.length - 1);
+  return FLAIR_COLORS[index]!;
+};
+
 export const XP_REWARDS = {
   CORRECT_GUESS: 10,
   FIRST_CRACK_BONUS: 15,

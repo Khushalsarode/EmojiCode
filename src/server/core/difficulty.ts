@@ -1,8 +1,8 @@
-// Live stats + difficulty rating shown on the Solved Recap and guess screens
-// — modeled on Pixelary's own stickied "Game Master" stats comment (unique
-// players, total guesses, skip rate, solve rate), rendered in our own UI
-// rather than a Reddit comment (see README_START_HERE.md for why: stickying
-// a comment needs moderator-scope permissions this app doesn't request).
+// Live stats + difficulty rating (unique players, total guesses, skip rate,
+// solve rate) shown on the Solved Recap and guess screens. The lightweight
+// version of this — decode count only — is also mirrored onto a stickied
+// Reddit comment by core/post.ts and core/guessing.ts; this richer
+// breakdown stays in-app only.
 
 import type { CipherStats, DifficultyLabel } from '../../shared/api';
 import type { StoredCipherPost } from './storage';

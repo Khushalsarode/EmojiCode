@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { InitResponse, GuessResponse } from '../../shared/api';
+import type { InitResponse, GuessResponse, SuggestAnswerResponse } from '../../shared/api';
 
 type CipherState = {
   data: InitResponse | null;
@@ -48,5 +48,19 @@ export const useCipher = () => {
     }
   }, []);
 
-  return { ...state, submitGuess };
+  const suggestAnswer = useCallback(async (answerText: string): Promise<SuggestAnswerResponse | null> => {
+    try {
+      const res = await fetch('/api/suggest-answer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answerText }),
+      });
+      return (await res.json()) as SuggestAnswerResponse;
+    } catch (err) {
+      console.error('Failed to suggest answer', err);
+      return null;
+    }
+  }, []);
+
+  return { ...state, submitGuess, suggestAnswer };
 };

@@ -41,6 +41,20 @@ export const useCipher = () => {
             return null;
         }
     }, []);
-    return { ...state, submitGuess };
+    const suggestAnswer = useCallback(async (answerText) => {
+        try {
+            const res = await fetch('/api/suggest-answer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ answerText }),
+            });
+            return (await res.json());
+        }
+        catch (err) {
+            console.error('Failed to suggest answer', err);
+            return null;
+        }
+    }, []);
+    return { ...state, submitGuess, suggestAnswer };
 };
 //# sourceMappingURL=useCipher.js.map

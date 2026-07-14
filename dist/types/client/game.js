@@ -3,7 +3,7 @@ import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-run
 // in-app submission modal (Section 13.5). Heavy logic lives here, not in
 // splash.tsx. See 04_DEVVIT_WEB_BUILD_SKILL.md, Section 3.
 import './index.css';
-import { StrictMode, useEffect, useState } from 'react';
+import { lazy, StrictMode, Suspense, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { navigateTo } from '@devvit/web/client';
 import { useCipher } from './hooks/useCipher';
@@ -19,12 +19,16 @@ import { Trending } from './components/Trending';
 import { EmojiPicker } from './components/EmojiPicker';
 import { SoundSettings } from './components/SoundSettings';
 import { Spinner } from './components/Spinner';
-import { Confetti } from './components/Confetti';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Button } from './components/Button';
 import { HowToPlay } from './components/HowToPlay';
 import { sfx, unlockAudio } from './sound';
 import { clearNavHandoff, readNavHandoff } from './navHandoff';
 import { CATEGORY_OPTIONS, LANGUAGE_OPTIONS, ordinal, rankMedal } from '../shared/api';
+// Code-split: Phaser is ~1MB+ and is only ever needed for the solve-celebration
+// burst, so it's fetched on demand at the moment of a correct guess rather
+// than bundled into the expanded view's initial load.
+const CipherBurst = lazy(() => import('./components/CipherBurst').then((m) => ({ default: m.CipherBurst })));
 // Screens the home-screen menu (splash.tsx) can deep-link straight into via
 // navHandoff — deliberately excludes 'menu' (the default anyway), 'levelup'
 // (only reachable by actually leveling up), and 'recap' (needs a solved post).
@@ -114,11 +118,15 @@ const SubmitCipherModal = ({ onClose, canHardMode, }) => {
 };
 export const App = () => {
     useGlobalClickSound();
-    const { data, loading, submitGuess } = useCipher();
+    const { data, loading, submitGuess, suggestAnswer } = useCipher();
     const { profile, refresh: refreshProfile } = useProfile();
     const [guessText, setGuessText] = useState('');
     const [feedback, setFeedback] = useState(null);
     const [revealedAnswer, setRevealedAnswer] = useState(null);
+    const [suggestOpen, setSuggestOpen] = useState(false);
+    const [suggestText, setSuggestText] = useState('');
+    const [suggestStatus, setSuggestStatus] = useState(null);
+    const [suggesting, setSuggesting] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     // Both read the same handoff key (splash.tsx's home-screen menu sets it
     // right before expanding into this view) — reading is a pure, idempotent
@@ -130,7 +138,7 @@ export const App = () => {
         return handoff && DEEP_LINK_SCREENS.includes(handoff) ? handoff : null;
     });
     const [solved, setSolved] = useState(false);
-    const [celebrate, setCelebrate] = useState(false);
+    const [celebration, setCelebration] = useState(null);
     const [showHint, setShowHint] = useState(false);
     const [reaction, setReaction] = useState(null);
     const [showOnboard, setShowOnboard] = useState(() => {
@@ -184,7 +192,7 @@ export const App = () => {
                 message: `✅ Cracked it! 🔥 ${result.newStreak}-day streak${xpLine}${rankLine}${levelUpLine}`,
             });
             setSolved(true);
-            setCelebrate(true);
+            setCelebration({ emojis: post?.emojis ?? [], xpAwarded: result.xpAwarded, firstCrack: result.firstCrack });
             (result.leveledUp ? sfx.levelUp : sfx.correct)();
             void refreshProfile();
             if (result.leveledUp)
@@ -197,6 +205,26 @@ export const App = () => {
         else {
             setFeedback({ matched: false, closeMatch: false, message: 'Not quite — try again' });
             sfx.wrong();
+        }
+    };
+    const handleSuggestAnswer = async () => {
+        if (!suggestText.trim() || suggesting)
+            return;
+        setSuggesting(true);
+        const result = await suggestAnswer(suggestText);
+        setSuggesting(false);
+        if (!result) {
+            setSuggestStatus('Something went wrong — try again.');
+            return;
+        }
+        if (result.status === 'added') {
+            setSuggestStatus('✅ Added — future guessers get credit for this phrasing too.');
+            setSuggestText('');
+            sfx.correct();
+        }
+        else {
+            setSuggestStatus(result.reason);
+            sfx.error();
         }
     };
     const handleGiveUp = async () => {
@@ -238,16 +266,16 @@ export const App = () => {
                                     color: 'var(--color-primary)',
                                 }, children: "\uD83C\uDF1F Cipher of the Day" })), post.hardMode && (_jsx("span", { className: "text-xs font-medium px-2 py-0.5 rounded-full", style: { color: 'var(--color-warning)', backgroundColor: 'color-mix(in srgb, var(--color-warning) 15%, transparent)' }, children: "\uD83D\uDD25 Hard Mode" })), _jsx("span", { className: "text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400", children: post.category }), _jsxs("span", { className: "text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400", children: ["\uD83C\uDF10 ", post.language] })] }), _jsxs("div", { className: "relative", children: [_jsx("div", { className: "emoji-row text-center", children: post.emojis.join(' ') }), reaction && (_jsx("span", { className: "reaction-pop absolute left-1/2 top-0 text-4xl pointer-events-none", children: reaction }))] }), _jsx("div", { className: "flex items-center justify-center gap-1.5 sm:gap-2", children: ['🔥', '😍', '🤯', '🎉'].map((emoji) => (_jsx("button", { className: "w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-gray-200 dark:border-gray-700 text-base sm:text-lg hover:border-[var(--color-primary)] hover:scale-110 transition-all", onClick: () => handleReact(emoji), "aria-label": `React ${emoji}`, children: emoji }, emoji))) }), _jsxs("div", { className: "text-center text-sm sm:text-base text-gray-500 dark:text-gray-400", children: [post.stats.uniquePlayers === 0
                                 ? "Nobody's cracked this yet. Bold move."
-                                : `${post.stats.uniquePlayers} players tried · ${post.stats.solveRate}% solved it`, post.firstCrackUsername && (_jsxs(_Fragment, { children: [' ', "\u00B7 \uD83E\uDD47 ", _jsxs("span", { className: "font-pixel", children: ["u/", post.firstCrackUsername] })] }))] }), post.stats.uniquePlayers > 0 && (_jsxs("div", { className: "text-center text-xs -mt-3 text-gray-400 dark:text-gray-500", children: [post.stats.difficultyIcon, " ", post.stats.difficultyLabel, " (", post.stats.difficultyScore.toFixed(1), "/10)"] })), revealedAnswer ? (_jsxs("div", { className: "flex flex-col items-center gap-2", children: [_jsxs("div", { className: "text-center text-base font-heading font-semibold text-gray-800 dark:text-gray-100", children: ["The answer was: ", revealedAnswer] }), _jsx("button", { className: "text-xs text-gray-400 dark:text-gray-500 underline hover:text-[var(--color-primary)] transition-colors", onClick: () => setScreen('recap'), children: "\uD83D\uDCCA See how everyone else did" })] })) : !isSolved ? (_jsxs("div", { className: "flex flex-col gap-3 items-center", children: [_jsxs("div", { className: "flex w-full max-w-sm sm:max-w-md gap-2", children: [_jsx("input", { className: "flex-1 h-12 sm:h-14 rounded-lg border-2 border-gray-300 dark:border-gray-600 px-3 bg-transparent text-gray-900 dark:text-gray-100 text-base sm:text-lg focus:border-[var(--color-primary)] outline-none transition-colors", placeholder: "My guess...", value: guessText, onChange: (e) => setGuessText(e.target.value), onKeyDown: (e) => e.key === 'Enter' && handleGuess(), disabled: submitting, autoFocus: true }), _jsx(Button, { size: "lg", onClick: handleGuess, loading: submitting, children: !submitting && 'Send' })] }), feedback && (_jsx("div", { className: `text-sm sm:text-base font-medium ${!feedback.matched && !feedback.closeMatch ? 'shake-x' : ''}`, style: {
+                                : `${post.stats.uniquePlayers} players tried · ${post.stats.solveRate}% solved it`, post.firstCrackUsername && (_jsxs(_Fragment, { children: [' ', "\u00B7 \uD83E\uDD47 ", _jsxs("span", { className: "font-pixel", children: ["u/", post.firstCrackUsername] })] }))] }), post.stats.uniquePlayers > 0 && (_jsxs("div", { className: "text-center text-xs -mt-3 text-gray-400 dark:text-gray-500", children: [post.stats.difficultyIcon, " ", post.stats.difficultyLabel, " (", post.stats.difficultyScore.toFixed(1), "/10)"] })), revealedAnswer ? (_jsxs("div", { className: "flex flex-col items-center gap-2", children: [_jsxs("div", { className: "text-center text-base font-heading font-semibold text-gray-800 dark:text-gray-100", children: ["The answer was: ", revealedAnswer] }), _jsx("button", { className: "text-xs text-gray-400 dark:text-gray-500 underline hover:text-[var(--color-primary)] transition-colors", onClick: () => setScreen('recap'), children: "\uD83D\uDCCA See how everyone else did" })] })) : !isSolved ? (_jsxs("div", { className: "flex flex-col gap-3 items-center", children: [_jsxs("div", { className: "flex w-full max-w-sm sm:max-w-md gap-2", children: [_jsx("input", { className: "flex-1 h-12 sm:h-14 rounded-lg border-2 border-gray-300 dark:border-gray-600 px-3 bg-transparent text-gray-900 dark:text-gray-100 text-base sm:text-lg focus:border-[var(--color-primary)] outline-none transition-colors", placeholder: "My guess...", value: guessText, onChange: (e) => setGuessText(e.target.value), onKeyDown: (e) => e.key === 'Enter' && handleGuess(), disabled: submitting, autoFocus: true }), _jsx(Button, { size: "lg", onClick: handleGuess, loading: submitting, children: !submitting && 'Send' })] }), feedback && (_jsx("div", { className: `text-sm sm:text-base font-medium ${feedback.matched ? 'correct-pop' : !feedback.closeMatch ? 'shake-x' : ''}`, style: {
                                     color: feedback.matched
                                         ? 'var(--color-success)'
                                         : feedback.closeMatch
                                             ? 'var(--color-warning)'
                                             : undefined,
-                                }, children: feedback.message }, feedback.message)), showHint && (_jsx("div", { className: "font-mono-stat text-lg tracking-widest text-gray-500 dark:text-gray-400", children: post.answerHint })), _jsxs("div", { className: "flex gap-2", children: [_jsxs(Button, { variant: "outline", size: "sm", onClick: () => setShowHint((v) => !v), children: ["\uD83D\uDCA1 ", showHint ? 'Hide Hint' : 'Hint'] }), _jsx(Button, { variant: "outline", size: "sm", className: "hover:border-[var(--color-danger)]", onClick: handleGiveUp, children: "\uD83C\uDFF3 Give up" })] })] })) : (_jsx("div", { className: "text-center text-sm font-medium", style: { color: 'var(--color-success)' }, children: "\u2705 You've cracked this one" }))] })), _jsx("div", { className: "mt-auto flex flex-col gap-2 w-full max-w-sm sm:max-w-md mx-auto", children: _jsx(Button, { variant: "outline", fullWidth: true, onClick: openCreateCipher, children: "\u2728 Create a Cipher (+20 XP)" }) }), showOnboard && (_jsx("div", { className: "fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-[60] p-4", children: _jsxs("div", { className: "card-glow modal-pop bg-white dark:bg-gray-900 rounded-xl p-5 sm:p-6 w-full max-w-sm sm:max-w-md flex flex-col gap-3", children: [_jsx("p", { className: "text-sm sm:text-base text-gray-700 dark:text-gray-200", children: "\uD83D\uDC4B New here? Guess what these 5 emojis mean \u2014 right in the comments. Or hit \u2728 to post your own. That's it." }), _jsx(Button, { fullWidth: true, onClick: dismissOnboard, children: "Got it" })] }) })), modalOpen && (_jsx(SubmitCipherModal, { canHardMode: canHardMode, onClose: () => {
+                                }, children: feedback.message }, feedback.message)), showHint && (_jsx("div", { className: "font-mono-stat text-lg tracking-widest text-gray-500 dark:text-gray-400", children: post.answerHint })), _jsxs("div", { className: "flex gap-2", children: [_jsxs(Button, { variant: "outline", size: "sm", onClick: () => setShowHint((v) => !v), children: ["\uD83D\uDCA1 ", showHint ? 'Hide Hint' : 'Hint'] }), _jsx(Button, { variant: "outline", size: "sm", className: "hover:border-[var(--color-danger)]", onClick: handleGiveUp, children: "\uD83C\uDFF3 Give up" })] })] })) : (_jsxs("div", { className: "flex flex-col items-center gap-2", children: [_jsx("div", { className: "text-center text-sm font-medium", style: { color: 'var(--color-success)' }, children: "\u2705 You've cracked this one" }), !suggestOpen ? (_jsx("button", { className: "text-xs text-gray-400 dark:text-gray-500 underline hover:text-[var(--color-primary)] transition-colors", onClick: () => setSuggestOpen(true), children: "\uD83D\uDCA1 Know another way people might phrase this? Add it" })) : (_jsxs("div", { className: "flex flex-col items-center gap-2 w-full max-w-sm", children: [_jsxs("div", { className: "flex w-full gap-2", children: [_jsx("input", { className: "flex-1 h-10 rounded-lg border-2 border-gray-300 dark:border-gray-600 px-3 bg-transparent text-gray-900 dark:text-gray-100 text-sm focus:border-[var(--color-primary)] outline-none transition-colors", placeholder: "Another accepted phrasing\u2026", value: suggestText, onChange: (e) => setSuggestText(e.target.value), onKeyDown: (e) => e.key === 'Enter' && handleSuggestAnswer(), disabled: suggesting }), _jsx(Button, { size: "sm", onClick: handleSuggestAnswer, loading: suggesting, children: !suggesting && 'Add' })] }), suggestStatus && (_jsx("div", { className: "text-xs text-gray-500 dark:text-gray-400 text-center", children: suggestStatus }))] }))] }))] })), _jsx("div", { className: "mt-auto flex flex-col gap-2 w-full max-w-sm sm:max-w-md mx-auto", children: _jsx(Button, { variant: "outline", fullWidth: true, onClick: openCreateCipher, children: "\u2728 Create a Cipher (+20 XP)" }) }), showOnboard && (_jsx("div", { className: "fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-[60] p-4", children: _jsxs("div", { className: "card-glow modal-pop bg-white dark:bg-gray-900 rounded-xl p-5 sm:p-6 w-full max-w-sm sm:max-w-md flex flex-col gap-3", children: [_jsx("p", { className: "text-sm sm:text-base text-gray-700 dark:text-gray-200", children: "\uD83D\uDC4B New here? Guess what these 5 emojis mean \u2014 right in the comments. Or hit \u2728 to post your own. That's it." }), _jsx(Button, { fullWidth: true, onClick: dismissOnboard, children: "Got it" })] }) })), modalOpen && (_jsx(SubmitCipherModal, { canHardMode: canHardMode, onClose: () => {
                     setModalOpen(false);
                     void refreshProfile();
-                } })), screen === 'menu' && (_jsx(HomeMenu, { profile: profile, onClose: () => setScreen(null), onCreateCipher: openCreateCipher, onOpenRewards: () => setScreen('rewards'), onOpenLeaderboard: () => setScreen('leaderboard'), onOpenLevelUp: () => setScreen('levelup'), onOpenMyCiphers: () => setScreen('myciphers'), onOpenProfile: () => setScreen('profile'), onOpenTrending: () => setScreen('trending'), onOpenHowTo: () => setScreen('howto') })), screen === 'rewards' && _jsx(MyRewards, { profile: profile, onClose: () => setScreen('menu') }), screen === 'levelup' && profile && _jsx(LevelUp, { profile: profile, onClose: () => setScreen('menu') }), screen === 'leaderboard' && _jsx(Leaderboard, { onClose: () => setScreen('menu') }), screen === 'myciphers' && (_jsx(MyCiphers, { onClose: () => setScreen('menu'), onCreateCipher: openCreateCipher })), screen === 'profile' && profile && _jsx(ProfileCard, { profile: profile, onClose: () => setScreen('menu') }), screen === 'trending' && _jsx(Trending, { onClose: () => setScreen('menu') }), screen === 'sound' && _jsx(SoundSettings, { onClose: () => setScreen('menu') }), screen === 'howto' && _jsx(HowToPlay, { onClose: () => setScreen('menu') }), screen === 'recap' && _jsx(SolvedRecap, { onClose: () => setScreen(null), onCreateCipher: openCreateCipher }), celebrate && _jsx(Confetti, { onDone: () => setCelebrate(false) })] }));
+                } })), screen === 'menu' && (_jsx(HomeMenu, { profile: profile, onClose: () => setScreen(null), onCreateCipher: openCreateCipher, onOpenRewards: () => setScreen('rewards'), onOpenLeaderboard: () => setScreen('leaderboard'), onOpenLevelUp: () => setScreen('levelup'), onOpenMyCiphers: () => setScreen('myciphers'), onOpenProfile: () => setScreen('profile'), onOpenTrending: () => setScreen('trending'), onOpenHowTo: () => setScreen('howto') })), screen === 'rewards' && _jsx(MyRewards, { profile: profile, onClose: () => setScreen('menu') }), screen === 'levelup' && profile && _jsx(LevelUp, { profile: profile, onClose: () => setScreen('menu') }), screen === 'leaderboard' && _jsx(Leaderboard, { onClose: () => setScreen('menu') }), screen === 'myciphers' && (_jsx(MyCiphers, { onClose: () => setScreen('menu'), onCreateCipher: openCreateCipher })), screen === 'profile' && profile && _jsx(ProfileCard, { profile: profile, onClose: () => setScreen('menu') }), screen === 'trending' && _jsx(Trending, { onClose: () => setScreen('menu') }), screen === 'sound' && _jsx(SoundSettings, { onClose: () => setScreen('menu') }), screen === 'howto' && _jsx(HowToPlay, { onClose: () => setScreen('menu') }), screen === 'recap' && _jsx(SolvedRecap, { onClose: () => setScreen(null), onCreateCipher: openCreateCipher }), celebration && (_jsxs(_Fragment, { children: [_jsx("div", { className: "celebrate-flash pointer-events-none fixed inset-0 z-[99]", "aria-hidden": "true" }), _jsx(ErrorBoundary, { onError: () => setCelebration(null), children: _jsx(Suspense, { fallback: null, children: _jsx(CipherBurst, { emojis: celebration.emojis, xpAwarded: celebration.xpAwarded, firstCrack: celebration.firstCrack, onDone: () => setCelebration(null) }) }) })] }))] }));
 };
 createRoot(document.getElementById('root')).render(_jsx(StrictMode, { children: _jsx(App, {}) }));
 //# sourceMappingURL=game.js.map

@@ -54,7 +54,7 @@ export const createCipherPost = async (
     };
   }
 
-  // INSTANT PUBLISH — the actual Pixelary-style mechanism.
+  // INSTANT PUBLISH — the core mechanism.
   const titlePrefix = hardMode ? '🔥 Hard Mode · ' : '';
   const post = await reddit.submitCustomPost({
     subredditName,
@@ -66,6 +66,26 @@ export const createCipherPost = async (
     category && CATEGORY_OPTIONS.includes(category) ? category : inferCategory(answer);
   const resolvedLanguage = language && LANGUAGE_OPTIONS.includes(language) ? language : 'English';
 
+  // Stickied "stats" comment (Section 5's deliberately-left-out feature,
+  // now opted into via the "moderator" reddit scope in devvit.json) — a
+  // Reddit-native mirror of the in-app live decode counter, kept updated on
+  // every new solve by core/guessing.ts. Non-fatal if it fails: the app's
+  // own UI is always the source of truth for stats regardless.
+  let statsCommentId: string | null = null;
+  try {
+    const statsComment = await reddit.submitComment({
+      // post.id is already a fully-prefixed T3 id (e.g. "t3_1uw7ai6") —
+      // re-prefixing it here previously produced an invalid "t3_t3_..." id.
+      id: post.id,
+      text: '🔐 **0** redditors have cracked this so far. First to solve it earns 🥇 First Crack!',
+      runAs: 'APP',
+    });
+    await statsComment.distinguish(true);
+    statsCommentId = statsComment.id;
+  } catch (err) {
+    console.error('Sticky stats comment failed (non-fatal)', err);
+  }
+
   const record: StoredCipherPost = {
     postId: post.id,
     submitterUserId: userId,
@@ -74,6 +94,8 @@ export const createCipherPost = async (
     category: resolvedCategory,
     language: resolvedLanguage,
     answer,
+    acceptedAnswers: [answer],
+    statsCommentId,
     publishedAt: Date.now(),
     upvotes: 0,
     upvoteXpAwarded: 0,

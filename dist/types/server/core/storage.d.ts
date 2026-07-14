@@ -37,6 +37,8 @@ export type StoredCipherPost = {
     category: string;
     language: string;
     answer: string;
+    acceptedAnswers: string[];
+    statsCommentId: string | null;
     publishedAt: number;
     upvotes: number;
     upvoteXpAwarded: number;
@@ -53,4 +55,5 @@ export type StoredCipherPost = {
     uniqueGuessers: string[];
     skips: number;
 };
+export declare const answersFor: (cipher: StoredCipherPost) => string[];
 export declare const applyStreak: (profile: StoredUserProfile) => StoredUserProfile;

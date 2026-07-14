@@ -61,8 +61,9 @@ export const HomeMenu = ({
 
       {profile && profile.streakAtRisk && (
         <div
-          className="text-xs sm:text-sm text-center rounded-lg px-3 py-2 font-medium"
+          className="list-item-in text-xs sm:text-sm text-center rounded-lg px-3 py-2 font-medium"
           style={{
+            ['--i' as string]: 0,
             backgroundColor: 'color-mix(in srgb, var(--color-warning) 15%, transparent)',
             color: 'var(--color-warning)',
           }}
@@ -71,32 +72,42 @@ export const HomeMenu = ({
         </div>
       )}
 
-      <Button fullWidth className="mt-2" onClick={onCreateCipher}>
+      <Button fullWidth className="list-item-in mt-2" style={{ ['--i' as string]: 1 }} onClick={onCreateCipher}>
         ✨ Create a Cipher
       </Button>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-        <Button variant="outline" fullWidth onClick={onOpenMyCiphers}>
+        <Button variant="outline" fullWidth className="list-item-in" style={{ ['--i' as string]: 2 }} onClick={onOpenMyCiphers}>
           🔍 My Ciphers
         </Button>
-        <Button variant="outline" fullWidth onClick={onOpenRewards}>
+        <Button variant="outline" fullWidth className="list-item-in" style={{ ['--i' as string]: 3 }} onClick={onOpenRewards}>
           🏅 My Rewards
         </Button>
-        <Button variant="outline" fullWidth onClick={onOpenLeaderboard}>
+        <Button variant="outline" fullWidth className="list-item-in" style={{ ['--i' as string]: 4 }} onClick={onOpenLeaderboard}>
           🏆 Leaderboard
         </Button>
-        <Button variant="outline" fullWidth onClick={onOpenProfile}>
+        <Button variant="outline" fullWidth className="list-item-in" style={{ ['--i' as string]: 5 }} onClick={onOpenProfile}>
           👤 My Profile
         </Button>
-        <Button variant="outline" fullWidth onClick={onOpenHowTo}>
+        <Button variant="outline" fullWidth className="list-item-in" style={{ ['--i' as string]: 6 }} onClick={onOpenHowTo}>
           ❓ How to Play
         </Button>
-        <Button variant="outline" fullWidth onClick={onOpenTrending} className="sm:col-span-2">
+        <Button
+          variant="outline"
+          fullWidth
+          className="list-item-in sm:col-span-2"
+          style={{ ['--i' as string]: 7 }}
+          onClick={onOpenTrending}
+        >
           🌟 Trending
         </Button>
       </div>
 
       {profile && (
-        <button className="flex flex-col gap-1 mt-2 text-left group" onClick={onOpenLevelUp}>
+        <button
+          className="list-item-in flex flex-col gap-1 mt-2 text-left group"
+          style={{ ['--i' as string]: 8 }}
+          onClick={onOpenLevelUp}
+        >
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-[var(--color-primary)] transition-colors">
             Level {profile.level} · {profile.label} →
           </span>

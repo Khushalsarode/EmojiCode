@@ -71,27 +71,38 @@ export const Leaderboard = ({ onClose }: Props) => {
         ) : data.entries.length === 0 ? (
           <div className="text-sm text-gray-400 dark:text-gray-500 text-center py-4">No scores yet.</div>
         ) : (
-          data.entries.map((entry, i) => (
-            <div
-              key={entry.userId}
-              className="list-card list-item-in flex items-center justify-between text-sm rounded-lg border border-transparent hover:border-gray-200 dark:hover:border-gray-700 px-2 py-1 -mx-2"
-              style={{ ['--i' as string]: i }}
-            >
-              <div>
-                <span className="font-mono-stat text-gray-400 dark:text-gray-500 mr-2">{i + 1}.</span>
-                <span className="font-pixel text-gray-800 dark:text-gray-100">u/{entry.username}</span>
-                <div className="text-xs text-gray-500 dark:text-gray-400 ml-6">
-                  🏅 {entry.label} · {entry.score} pts
-                  {entry.streak > 0 ? ` · 🔥 ${entry.streak}` : ''}
+          data.entries.map((entry, i) => {
+            const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : null;
+            return (
+              <div
+                key={entry.userId}
+                className="list-card list-item-in flex items-center gap-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 px-3 py-2"
+                style={{ ['--i' as string]: i }}
+              >
+                <span className="font-mono-stat text-gray-400 dark:text-gray-500 w-6 text-center shrink-0">
+                  {medal ?? `${i + 1}.`}
+                </span>
+                <div className="min-w-0">
+                  <span className="font-pixel text-gray-800 dark:text-gray-100">u/{entry.username}</span>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    🏅 {entry.label} · {entry.score} pts
+                    {entry.streak > 0 ? ` · 🔥 ${entry.streak}` : ''}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
       {data && data.viewerRank !== null && (
-        <div className="border-t border-gray-200 dark:border-gray-700 pt-2 text-sm text-gray-700 dark:text-gray-300">
+        <div
+          className="rounded-lg px-3 py-2 text-sm font-medium"
+          style={{
+            backgroundColor: 'color-mix(in srgb, var(--color-primary) 12%, transparent)',
+            color: 'var(--color-primary)',
+          }}
+        >
           You: #{data.viewerRank}
           {data.viewerStreak > 0 ? ` · 🔥 ${data.viewerStreak}-day streak` : ''}
         </div>

@@ -19,9 +19,24 @@
   },
   "permissions": {
     "redis": true,
+    "http": {
+      "enable": true,
+      "domains": ["api.openai.com"]
+    },
     "reddit": {
       "enable": true,
+      "scope": "moderator",
       "asUser": ["SUBMIT_POST", "SUBMIT_COMMENT"]
+    }
+  },
+  "settings": {
+    "global": {
+      "openaiApiKey": {
+        "label": "OpenAI API Key",
+        "type": "string",
+        "isSecret": true,
+        "helpText": "Optional. Enables the real OpenAI Moderation classifier (free endpoint) for submission safety-checking and semantic-ish answer validation. Set with `devvit settings set openaiApiKey`. Leave unset to keep using the built-in offline word-denylist only."
+      }
     }
   },
   "menu": {

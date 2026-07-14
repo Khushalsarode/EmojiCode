@@ -3,7 +3,7 @@
 // splash.tsx. See 04_DEVVIT_WEB_BUILD_SKILL.md, Section 3.
 import './index.css';
 
-import { StrictMode, useEffect, useState } from 'react';
+import { lazy, StrictMode, Suspense, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { navigateTo } from '@devvit/web/client';
 import { useCipher } from './hooks/useCipher';
@@ -19,12 +19,19 @@ import { Trending } from './components/Trending';
 import { EmojiPicker } from './components/EmojiPicker';
 import { SoundSettings } from './components/SoundSettings';
 import { Spinner } from './components/Spinner';
-import { Confetti } from './components/Confetti';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Button } from './components/Button';
 import { HowToPlay } from './components/HowToPlay';
 import { sfx, unlockAudio } from './sound';
 import { clearNavHandoff, readNavHandoff } from './navHandoff';
 import { CATEGORY_OPTIONS, LANGUAGE_OPTIONS, ordinal, rankMedal, type SubmitCipherResponse } from '../shared/api';
+
+// Code-split: Phaser is ~1MB+ and is only ever needed for the solve-celebration
+// burst, so it's fetched on demand at the moment of a correct guess rather
+// than bundled into the expanded view's initial load.
+const CipherBurst = lazy(() =>
+  import('./components/CipherBurst').then((m) => ({ default: m.CipherBurst }))
+);
 
 type Screen =
   | 'menu'
@@ -249,7 +256,7 @@ const SubmitCipherModal = ({
 
 export const App = () => {
   useGlobalClickSound();
-  const { data, loading, submitGuess } = useCipher();
+  const { data, loading, submitGuess, suggestAnswer } = useCipher();
   const { profile, refresh: refreshProfile } = useProfile();
   const [guessText, setGuessText] = useState('');
   const [feedback, setFeedback] = useState<null | {
@@ -258,6 +265,10 @@ export const App = () => {
     message: string;
   }>(null);
   const [revealedAnswer, setRevealedAnswer] = useState<string | null>(null);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [suggestText, setSuggestText] = useState('');
+  const [suggestStatus, setSuggestStatus] = useState<string | null>(null);
+  const [suggesting, setSuggesting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   // Both read the same handoff key (splash.tsx's home-screen menu sets it
   // right before expanding into this view) — reading is a pure, idempotent
@@ -269,7 +280,11 @@ export const App = () => {
     return handoff && DEEP_LINK_SCREENS.includes(handoff as Screen) ? (handoff as Screen) : null;
   });
   const [solved, setSolved] = useState(false);
-  const [celebrate, setCelebrate] = useState(false);
+  const [celebration, setCelebration] = useState<{
+    emojis: string[];
+    xpAwarded: number;
+    firstCrack: boolean;
+  } | null>(null);
   const [showHint, setShowHint] = useState(false);
   const [reaction, setReaction] = useState<string | null>(null);
   const [showOnboard, setShowOnboard] = useState(() => {
@@ -326,7 +341,7 @@ export const App = () => {
         message: `✅ Cracked it! 🔥 ${result.newStreak}-day streak${xpLine}${rankLine}${levelUpLine}`,
       });
       setSolved(true);
-      setCelebrate(true);
+      setCelebration({ emojis: post?.emojis ?? [], xpAwarded: result.xpAwarded, firstCrack: result.firstCrack });
       (result.leveledUp ? sfx.levelUp : sfx.correct)();
       void refreshProfile();
       if (result.leveledUp) setScreen('levelup');
@@ -336,6 +351,25 @@ export const App = () => {
     } else {
       setFeedback({ matched: false, closeMatch: false, message: 'Not quite — try again' });
       sfx.wrong();
+    }
+  };
+
+  const handleSuggestAnswer = async () => {
+    if (!suggestText.trim() || suggesting) return;
+    setSuggesting(true);
+    const result = await suggestAnswer(suggestText);
+    setSuggesting(false);
+    if (!result) {
+      setSuggestStatus('Something went wrong — try again.');
+      return;
+    }
+    if (result.status === 'added') {
+      setSuggestStatus('✅ Added — future guessers get credit for this phrasing too.');
+      setSuggestText('');
+      sfx.correct();
+    } else {
+      setSuggestStatus(result.reason);
+      sfx.error();
     }
   };
 
@@ -553,7 +587,9 @@ export const App = () => {
               {feedback && (
                 <div
                   key={feedback.message}
-                  className={`text-sm sm:text-base font-medium ${!feedback.matched && !feedback.closeMatch ? 'shake-x' : ''}`}
+                  className={`text-sm sm:text-base font-medium ${
+                    feedback.matched ? 'correct-pop' : !feedback.closeMatch ? 'shake-x' : ''
+                  }`}
                   style={{
                     color: feedback.matched
                       ? 'var(--color-success)'
@@ -582,8 +618,37 @@ export const App = () => {
               </div>
             </div>
           ) : (
-            <div className="text-center text-sm font-medium" style={{ color: 'var(--color-success)' }}>
-              ✅ You&apos;ve cracked this one
+            <div className="flex flex-col items-center gap-2">
+              <div className="text-center text-sm font-medium" style={{ color: 'var(--color-success)' }}>
+                ✅ You&apos;ve cracked this one
+              </div>
+              {!suggestOpen ? (
+                <button
+                  className="text-xs text-gray-400 dark:text-gray-500 underline hover:text-[var(--color-primary)] transition-colors"
+                  onClick={() => setSuggestOpen(true)}
+                >
+                  💡 Know another way people might phrase this? Add it
+                </button>
+              ) : (
+                <div className="flex flex-col items-center gap-2 w-full max-w-sm">
+                  <div className="flex w-full gap-2">
+                    <input
+                      className="flex-1 h-10 rounded-lg border-2 border-gray-300 dark:border-gray-600 px-3 bg-transparent text-gray-900 dark:text-gray-100 text-sm focus:border-[var(--color-primary)] outline-none transition-colors"
+                      placeholder="Another accepted phrasing…"
+                      value={suggestText}
+                      onChange={(e) => setSuggestText(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSuggestAnswer()}
+                      disabled={suggesting}
+                    />
+                    <Button size="sm" onClick={handleSuggestAnswer} loading={suggesting}>
+                      {!suggesting && 'Add'}
+                    </Button>
+                  </div>
+                  {suggestStatus && (
+                    <div className="text-xs text-gray-500 dark:text-gray-400 text-center">{suggestStatus}</div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </>
@@ -644,7 +709,24 @@ export const App = () => {
       {screen === 'sound' && <SoundSettings onClose={() => setScreen('menu')} />}
       {screen === 'howto' && <HowToPlay onClose={() => setScreen('menu')} />}
       {screen === 'recap' && <SolvedRecap onClose={() => setScreen(null)} onCreateCipher={openCreateCipher} />}
-      {celebrate && <Confetti onDone={() => setCelebrate(false)} />}
+      {celebration && (
+        <>
+          {/* Guaranteed CSS-only celebration — fires immediately and never
+              depends on the heavier Phaser scene below loading/running
+              successfully (see ErrorBoundary + CipherBurst.tsx). */}
+          <div className="celebrate-flash pointer-events-none fixed inset-0 z-[99]" aria-hidden="true" />
+          <ErrorBoundary onError={() => setCelebration(null)}>
+            <Suspense fallback={null}>
+              <CipherBurst
+                emojis={celebration.emojis}
+                xpAwarded={celebration.xpAwarded}
+                firstCrack={celebration.firstCrack}
+                onDone={() => setCelebration(null)}
+              />
+            </Suspense>
+          </ErrorBoundary>
+        </>
+      )}
     </div>
   );
 };

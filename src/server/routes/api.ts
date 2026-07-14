@@ -1,8 +1,9 @@
 import { Hono } from 'hono';
 import { context, redis, reddit } from '@devvit/web/server';
-import { keys, defaultUserProfile, currentIsoWeek, todayUtc, type StoredCipherPost } from '../core/storage';
-import { scoreGuess, censorGuess, hintPattern } from '../core/matching';
+import { keys, defaultUserProfile, currentIsoWeek, todayUtc, answersFor, type StoredCipherPost } from '../core/storage';
+import { scoreGuessAgainstAnswers, censorGuess, hintPattern } from '../core/matching';
 import { processGuess } from '../core/guessing';
+import { suggestAlternateAnswer } from '../core/answerDictionary';
 import { isCommand } from '../core/commands';
 import { computeLevel, baseDailySubmissionLimit, getTierByLevel, XP_REWARDS, LEVEL_TIERS } from '../core/leveling';
 import { createCipherPost } from '../core/post';
@@ -25,6 +26,8 @@ import type {
   MyCiphersResponse,
   TrendingResponse,
   LevelLookupResponse,
+  SuggestAnswerRequest,
+  SuggestAnswerResponse,
 } from '../../shared/api';
 
 export const api = new Hono();
@@ -244,6 +247,31 @@ api.post('/give-up', async (c) => {
   return c.json({ answer: cipher.answer });
 });
 
+// Crowd-sourced answer dictionary (core/answerDictionary.ts) — only a viewer
+// who has already solved this cipher can contribute an alternate phrasing.
+api.post('/suggest-answer', async (c) => {
+  const { postId, userId } = context;
+  if (!postId || !userId) {
+    return c.json<ErrorResponse>({ status: 'error', message: 'Missing context' }, 400);
+  }
+  const cipher = await loadCipher(postId);
+  if (!cipher) {
+    return c.json<ErrorResponse>({ status: 'error', message: 'Cipher not found' }, 404);
+  }
+
+  const { answerText } = await c.req.json<SuggestAnswerRequest>();
+  const hasSolved = cipher.decoderList.some((d) => d.userId === userId);
+  const result = await suggestAlternateAnswer(cipher, hasSolved, answerText);
+
+  if (result.status === 'rejected') {
+    return c.json<SuggestAnswerResponse>({ status: 'rejected', reason: result.reason }, 400);
+  }
+
+  cipher.acceptedAnswers = result.acceptedAnswers;
+  await redis.set(keys.cipher(postId), JSON.stringify(cipher));
+  return c.json<SuggestAnswerResponse>({ status: 'added', acceptedAnswerCount: result.acceptedAnswers.length });
+});
+
 api.get('/profile', async (c) => {
   const { userId } = context;
   if (!userId) {
@@ -448,9 +476,10 @@ api.get('/recap', async (c) => {
   const submitterLabel = submitterProfile ? computeLevel(submitterProfile.xp).label : 'Rookie Decoder';
   const cipherOfDayId = await getCipherOfDayPostId();
 
+  const acceptedAnswers = answersFor(cipher);
   const distribution: GuessDistributionEntry[] = Object.entries(cipher.guessDistribution)
     .map(([text, count]) => {
-      const isCorrect = scoreGuess(text, cipher.answer).matched;
+      const isCorrect = scoreGuessAgainstAnswers(text, acceptedAnswers).matched;
       return {
         guessTextCensored: isCorrect ? cipher.answer : censorGuess(text),
         count,

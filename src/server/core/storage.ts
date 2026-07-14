@@ -75,6 +75,13 @@ export type StoredCipherPost = {
   category: string;
   language: string;
   answer: string;
+  // Crowd-sourced answer dictionary — additional accepted phrasings
+  // contributed by players who've already solved this cipher (core/answerDictionary.ts).
+  // Always non-empty once backfilled via `answersFor`; older records may not have it set.
+  acceptedAnswers: string[];
+  // Sticky "stats" comment id (core/post.ts creates it, core/guessing.ts keeps
+  // it updated) — null if creation failed or the record predates this feature.
+  statsCommentId: string | null;
   publishedAt: number;
   upvotes: number;
   // Cumulative XP already awarded to the submitter from this post's upvotes —
@@ -92,6 +99,11 @@ export type StoredCipherPost = {
   uniqueGuessers: string[]; // userIds of everyone who guessed (right or wrong)
   skips: number; // "Give up" taps
 };
+
+// Defensive backfill for cipher records created before the crowd-sourced
+// answer dictionary shipped — always returns at least [cipher.answer].
+export const answersFor = (cipher: StoredCipherPost): string[] =>
+  cipher.acceptedAnswers && cipher.acceptedAnswers.length > 0 ? cipher.acceptedAnswers : [cipher.answer];
 
 // Applies a correct-guess streak update against "today" in UTC. Kept as a
 // pure function so it's independently testable per the pre-submission

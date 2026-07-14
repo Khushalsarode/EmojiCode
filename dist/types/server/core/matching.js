@@ -1,9 +1,11 @@
 // Automated semantic-ish answer matching — see 01_PRODUCT_DOCUMENTATION.md, Section 9.2
 //
-// MVP implementation: normalized string comparison + Levenshtein distance,
-// which handles capitalization, "The" prefixes, punctuation, and minor typos
-// without any external API or manually-curated alternates list. This is
-// intentionally dependency-free so the core loop works offline during
+// MVP implementation: normalized string comparison + character-level
+// Levenshtein distance (typos/casing/"The" prefixes) combined with word-level
+// overlap (a guess missing or adding a whole word out of a multi-word answer
+// still reads as close, instead of whole-string Levenshtein unfairly tanking
+// the score) — no external API or manually-curated alternates list needed.
+// This is intentionally dependency-free so the core loop works offline during
 // playtesting. Swap `isMatch` for an embedding-similarity call later —
 // callers only care about the boolean/score contract below.
 import { containsProfanity } from './wordFilter';
@@ -26,6 +28,45 @@ const levenshtein = (a, b) => {
     }
     return dp[a.length][b.length];
 };
+// Whole-string Levenshtein badly over-penalizes a single dropped/extra word
+// in a multi-word answer ("lion king" -> "lion" reads as barely-related by
+// character distance alone, even though it's clearly the same answer minus
+// one word). This scores word-level overlap instead (Sørensen–Dice
+// coefficient, with each word itself Levenshtein-fuzzy-matched so per-word
+// typos still count) so a guess missing/adding one word out of several still
+// reads as close — matching.ts's final similarity is the max of this and the
+// character-level score, so neither approach can make a real match worse.
+const WORD_TYPO_TOLERANCE = 0.25; // fraction of the longer word's length allowed to differ
+const wordsMatch = (w1, w2) => {
+    if (w1 === w2)
+        return true;
+    const maxLen = Math.max(w1.length, w2.length);
+    if (maxLen <= 2)
+        return false; // too short for fuzzy tolerance to be meaningful
+    return levenshtein(w1, w2) / maxLen <= WORD_TYPO_TOLERANCE;
+};
+const wordSimilarity = (a, b) => {
+    const aWords = a.split(' ').filter(Boolean);
+    const bWords = b.split(' ').filter(Boolean);
+    if (aWords.length === 0 || bWords.length === 0)
+        return 0;
+    const bRemaining = [...bWords];
+    let common = 0;
+    for (const w of aWords) {
+        const idx = bRemaining.findIndex((bw) => wordsMatch(w, bw));
+        if (idx !== -1) {
+            common++;
+            bRemaining.splice(idx, 1); // each answer word can only be claimed once
+        }
+    }
+    return (2 * common) / (aWords.length + bWords.length);
+};
+// Crowd-sourced answer dictionary (core/answerDictionary.ts) — a free,
+// dependency-free stand-in for true synonym/semantic matching (which would
+// need a paid embeddings API). Instead of guessing that "Simba movie" means
+// "The Lion King", players who've already solved a cipher can contribute
+// that exact phrasing so future guessers get credit for it directly.
+export const MAX_ACCEPTED_ANSWERS = 8;
 export const scoreGuess = (guessText, answer) => {
     const g = normalize(guessText);
     const a = normalize(answer);
@@ -37,7 +78,9 @@ export const scoreGuess = (guessText, answer) => {
     }
     const distance = levenshtein(g, a);
     const maxLen = Math.max(g.length, a.length);
-    const similarity = 1 - distance / maxLen;
+    const charSimilarity = 1 - distance / maxLen;
+    const wordSim = wordSimilarity(g, a);
+    const similarity = Math.max(charSimilarity, wordSim);
     // Tuned thresholds — recalibrate against real playtest data per the
     // pre-submission testing checklist in 02_SETUP_AND_DEPLOYMENT.md.
     const MATCH_THRESHOLD = 0.85;
@@ -47,6 +90,20 @@ export const scoreGuess = (guessText, answer) => {
         closeMatch: similarity >= CLOSE_THRESHOLD && similarity < MATCH_THRESHOLD,
         similarity,
     };
+};
+// Scores a guess against every accepted phrasing for a cipher (the original
+// answer plus any crowd-sourced alternates) and returns the best result.
+export const scoreGuessAgainstAnswers = (guessText, answers) => {
+    let best = { matched: false, closeMatch: false, similarity: 0, matchedAnswer: null };
+    for (const answer of answers) {
+        const result = scoreGuess(guessText, answer);
+        if (result.matched)
+            return { ...result, matchedAnswer: answer };
+        if (result.similarity > best.similarity) {
+            best = { ...result, matchedAnswer: result.closeMatch ? answer : null };
+        }
+    }
+    return best;
 };
 // Partially censors a wrong guess for the Solved Recap screen (Section 13.6),
 // e.g. "The Jungle Book" -> "T** J****e B**k". First and last letter of each

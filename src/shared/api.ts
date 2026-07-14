@@ -235,6 +235,16 @@ export type ProfileResponse = {
   approxDecodesToNextLevel: number;
 };
 
+// Crowd-sourced answer dictionary (core/answerDictionary.ts) — only offered
+// to a viewer who has already solved the cipher (Section 13.3/13.4 success state).
+export type SuggestAnswerRequest = {
+  answerText: string;
+};
+
+export type SuggestAnswerResponse =
+  | { status: 'added'; acceptedAnswerCount: number }
+  | { status: 'rejected'; reason: string };
+
 export type ErrorResponse = {
   status: 'error';
   message: string;

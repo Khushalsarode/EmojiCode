@@ -1,14 +1,12 @@
-// Comment commands — a scoped-down analog of Pixelary's `!` comment-command
-// system. Deliberately limited to commands that need zero extra permissions:
-// `!help` and `!show <guess>` just reply to a comment, something this app
-// already does for correct-guess confirmations. Pixelary's `!add`/`!remove`/
-// `!words` commands rewrite a crowd-sourced answer dictionary, which is a
-// different core-mechanic (many accepted answers vs. our single fuzzy-matched
-// answer) — that's a product decision, not an implementation detail, so it's
-// deliberately not built here without that being explicitly decided first.
+// Comment commands — `!help` and `!show <guess>` just reply to a comment,
+// something this app already does for correct-guess confirmations. Rewriting
+// the crowd-sourced answer dictionary itself happens through the in-app
+// "suggest a phrasing" flow (core/answerDictionary.ts) instead of a comment
+// command, so a suggestion always goes through the safety gate with a proper
+// hasSolved check rather than being parsed out of free-text comment bodies.
 import { reddit, redis } from '@devvit/web/server';
-import { keys } from './storage';
-import { scoreGuess, censorGuess } from './matching';
+import { keys, answersFor } from './storage';
+import { scoreGuessAgainstAnswers, censorGuess } from './matching';
 import { containsProfanity } from './wordFilter';
 const HELP_TEXT = [
     '🔐 **EmojiCode comment commands**',
@@ -43,7 +41,7 @@ export const handleCommand = async (commentId, postId, text) => {
             return;
         }
         const [guessText, count] = found;
-        const isCorrect = scoreGuess(guessText, cipher.answer).matched;
+        const isCorrect = scoreGuessAgainstAnswers(guessText, answersFor(cipher)).matched;
         const revealed = containsProfanity(guessText) ? censorGuess(guessText) : guessText;
         await reply(isCorrect
             ? `🔎 "${revealed}" — the correct answer! Guessed ${count} time(s).`

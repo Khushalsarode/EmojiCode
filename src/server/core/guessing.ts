@@ -1,16 +1,17 @@
 // Shared guess-scoring pipeline used by /api/guess and onCommentSubmit.
 // Keeps XP / streak / decoderList / leaderboard updates in one place.
 
-import { redis, reddit } from '@devvit/web/server';
+import { redis, reddit, context } from '@devvit/web/server';
 import {
   keys,
   defaultUserProfile,
   applyStreak,
+  answersFor,
   currentIsoWeek,
   type StoredCipherPost,
 } from './storage';
-import { scoreGuess } from './matching';
-import { computeLevel, XP_REWARDS } from './leveling';
+import { scoreGuessAgainstAnswers } from './matching';
+import { computeLevel, flairColorForLevel, XP_REWARDS } from './leveling';
 import { awardMilestoneBadges } from './badges';
 import { DAILY_BONUS_XP, getCipherOfDayPostId } from './dailyChallenge';
 import { ordinal, rankMedal, type GuessResponse } from '../../shared/api';
@@ -82,7 +83,7 @@ export const processGuess = async (input: ProcessGuessInput): Promise<GuessRespo
     await redis.set(tallyKey, '1');
   }
 
-  const result = scoreGuess(trimmed, cipher.answer);
+  const result = scoreGuessAgainstAnswers(trimmed, answersFor(cipher));
 
   if (!result.matched) {
     await redis.set(keys.cipher(postId), JSON.stringify(cipher));
@@ -119,6 +120,23 @@ export const processGuess = async (input: ProcessGuessInput): Promise<GuessRespo
   }
   await redis.set(keys.cipher(postId), JSON.stringify(cipher));
 
+  // Keep the sticky "stats" comment (core/post.ts) in sync with the live
+  // decode count — non-fatal, the in-app UI is always the source of truth.
+  if (cipher.statsCommentId) {
+    try {
+      const solveCount = cipher.decoderList.length;
+      const firstCrackLine = cipher.firstCrackUsername ? ` · 🥇 First Crack: u/${cipher.firstCrackUsername}` : '';
+      const statsComment = await reddit.getCommentById(
+        cipher.statsCommentId.startsWith('t1_') ? (cipher.statsCommentId as `t1_${string}`) : `t1_${cipher.statsCommentId}`
+      );
+      await statsComment.edit({
+        text: `🔐 **${solveCount}** redditor${solveCount === 1 ? '' : 's'} ${solveCount === 1 ? 'has' : 'have'} cracked this so far.${firstCrackLine}`,
+      });
+    } catch (err) {
+      console.error('Stats comment update failed (non-fatal)', err);
+    }
+  }
+
   const profileRaw = await redis.get(keys.user(userId));
   let profile = profileRaw ? JSON.parse(profileRaw) : defaultUserProfile(userId, username);
   const prevLevel = computeLevel(profile.xp).level;
@@ -140,6 +158,23 @@ export const processGuess = async (input: ProcessGuessInput): Promise<GuessRespo
   const newTier = computeLevel(profile.xp);
   await redis.zAdd(keys.leaderboardAllTime(), { member: userId, score: profile.xp });
   await redis.zAdd(keys.leaderboardWeekly(currentIsoWeek()), { member: userId, score: profile.xp });
+
+  // Optional Reddit flair sync (Section 7.1's "Optional stretch") — mirrors
+  // the in-app level/label onto native subreddit flair. Non-fatal: flair is
+  // a cosmetic add-on, never a gate on gameplay.
+  if (newTier.level > prevLevel && context.subredditName) {
+    try {
+      await reddit.setUserFlair({
+        subredditName: context.subredditName,
+        username,
+        text: `${newTier.label} · Lv.${newTier.level}`,
+        backgroundColor: flairColorForLevel(newTier.level),
+        textColor: 'light',
+      });
+    } catch (err) {
+      console.error('Flair sync failed (non-fatal)', err);
+    }
+  }
 
   if (replyOnMatch && commentId) {
     const streakLine = profile.currentStreak > 1 ? ` · 🔥 ${profile.currentStreak}-day streak` : '';

@@ -47,6 +47,9 @@ export const defaultUserProfile = (userId, username) => ({
     rewardsUnlocked: [],
     badges: [],
 });
+// Defensive backfill for cipher records created before the crowd-sourced
+// answer dictionary shipped — always returns at least [cipher.answer].
+export const answersFor = (cipher) => cipher.acceptedAnswers && cipher.acceptedAnswers.length > 0 ? cipher.acceptedAnswers : [cipher.answer];
 // Applies a correct-guess streak update against "today" in UTC. Kept as a
 // pure function so it's independently testable per the pre-submission
 // checklist in 02_SETUP_AND_DEPLOYMENT.md.
