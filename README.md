@@ -1,4 +1,19 @@
+<p align="center">
+  <img src="public/emojilogo.png" alt="EmojiCode logo" width="160" />
+</p>
+
 # 🔐 EmojiCode
+
+<p align="center">
+  <img alt="License" src="https://img.shields.io/badge/license-BSD--3--Clause-0f766e" />
+  <img alt="Platform" src="https://img.shields.io/badge/platform-Devvit%20Web-0f766e" />
+  <img alt="Built for Reddit" src="https://img.shields.io/badge/built%20for-Reddit-FF4500?logo=reddit&logoColor=white" />
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white" />
+  <img alt="React" src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white" />
+  <img alt="Redis" src="https://img.shields.io/badge/Redis-storage-DC382D?logo=redis&logoColor=white" />
+  <img alt="Node" src="https://img.shields.io/badge/node-%3E%3D22.2.0-339933?logo=node.js&logoColor=white" />
+  <img alt="Status" src="https://img.shields.io/badge/status-build%20complete-22c55e" />
+</p>
 
 **Encode it in 5. Crack it in comments.**
 
@@ -48,37 +63,40 @@ A full in-app **❓ How to Play** panel is always one tap away from the Home Men
 
 ## Features
 
-**Core loop**
-- Instant-publish cipher submission (5-emoji picker with ~600 emojis across 9 categories, plus quick search)
-- Real-time fuzzy-match guess scoring (typed inline or as a native Reddit comment)
-- Hint (blank-pattern reveal) and Give Up flows
-- Category + language tagging (9 categories, 21 languages)
-- Hard Mode tagging (Level 3+ unlock)
-- Real hosted-moderation safety check (opt-in via API key) layered on top of the always-on local denylist
-- Crowd-sourced answer dictionary — solvers can add alternate accepted phrasings for a cipher
+**Core Gameplay**
+- Create a cipher: pick exactly 5 emojis, type what they mean, post instantly — no approval wait
+- Guess directly in the post or in comments
+- Smart guess checking — small typos, different wording, or a missing word still count
+- Players can add alternate correct answers after solving, so future guessers get credit too
+- Hint option (shows word shape, never a letter) and a no-penalty Give Up
+- Category and language tagging
+- Hard Mode tag for higher-level players
 
-**Progression & retention**
-- XP / uncapped leveling system with named ranks and per-level rewards
-- Daily streaks, with a **streak-at-risk nudge** on the home screen if you haven't played today
-- Achievement badges (streak milestones, decode milestones, First Crack, Cipher Master standing)
-- **"Almost there" progress teaser** — see exactly how many more decodes to your next level, right on the Home Menu
-- **🌟 Cipher of the Day** — a daily featured pick with bonus XP, refreshed automatically every midnight UTC
-- Two leaderboards (Decoders + Cipher Masters), each with weekly and all-time views
-- 🌟 Trending rail (Level 6+ "Featured eligibility" reward)
-- Automated weekly leaderboard digest post
-- Native Reddit flair synced to level on every level-up
-- Stickied, auto-updating "N redditors have cracked this" comment on every cipher post
+**Progression**
+- XP and leveling with named ranks, no level cap
+- Daily streaks with a reminder if you're about to lose one
+- Achievement badges for milestones and first solves
+- Two separate leaderboards — one for guessers, one for creators
+- A featured "Cipher of the Day" that changes daily
+- A trending section for top creators
+- Weekly leaderboard recap posted automatically
 
-**Player-facing screens**
-- Home Menu, Create a Cipher, My Ciphers, My Rewards, Level-Up, Solved Recap (with a live difficulty rating and guess-distribution chart), Leaderboard, Personal Profile Card, How to Play, Sound Settings
-- A persistent hub post acts as the app's home screen — showing the full menu directly on the feed card, not just a single "open" button
+**Safety & Fair Play**
+- Automatic content filtering on every post, no manual moderation needed
+- Optional AI-powered moderation layer for extra safety
+- Safe-by-default behavior — if a safety check fails, the post is blocked, not published
+
+**Reddit Integration**
+- Player level shows up as real Reddit flair
+- Every cipher post gets a live comment tracking how many people solved it
+- A home post in the subreddit that acts as the main menu
 
 **Polish**
-- Full responsive/mobile-fluid layout (`clamp()`-based sizing, not fixed breakpoint jumps)
-- Custom sound engine — real audio files with an automatic synthesized fallback, independent SFX/music volume controls
-- Phaser physics burst on every solve (see below), plus CSS-only loading spinners, staggered list/badge animations, glassy button/wordmark shine
-- Dark mode throughout, with a warm "Cipher Teal" design system (not a generic purple-gradient default)
-- Distinct pixel-font treatment for the wordmark and every displayed Reddit username
+- A real physics-based animation when you crack a cipher
+- Sound effects with volume controls
+- Smooth animations throughout menus and lists
+- Full dark mode support
+- Fully responsive on mobile and desktop
 
 ## Why it's "hooky" — retention design
 
@@ -164,7 +182,7 @@ Everything above works with zero external accounts. One optional setting (`opena
 - **Event:** Reddit x Phaser "Games with a Hook" Hackathon
 - **Category:** Best Experience That Will Keep People Coming Back
 - **Sub-challenges targeted:** Best Use of Retention Mechanics, Best Use of User Contributions
-- **App listing:** _[add your developer.reddit.com app listing link here once published]_
+- **App listing:** [developers.reddit.com/apps/emojicode](https://developers.reddit.com/apps/emojicode)
 - **Demo subreddit:** _[add your public test subreddit link here]_
 - **Demo post:** _[add the public post URL from your subreddit here]_
 
